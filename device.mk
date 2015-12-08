@@ -78,6 +78,14 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/audio/sound_trigger_platform_info.xml:system/etc/sound_trigger_platform_info.xml \
     $(LOCAL_PATH)/audio/audio_platform_info.xml:system/etc/audio_platform_info.xml
 
+# Bluetooth
+BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(LOCAL_PATH)/bluetooth
+BOARD_HAS_QCA_BT_ROME := true
+BOARD_HAVE_BLUETOOTH := true
+BOARD_HAVE_BLUETOOTH_QCOM := true
+QCOM_BT_USE_BTNV := true
+QCOM_BT_USE_SMD_TTY := true
+WCNSS_FILTER_USES_SIBS := true
 
 # Display
 PRODUCT_PACKAGES += \
