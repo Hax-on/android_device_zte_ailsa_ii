@@ -121,17 +121,47 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/media_codecs.xml:system/etc/media_codecs.xml \
     $(LOCAL_PATH)/configs/media_codecs_performance.xml:system/etc/media_codecs_performance.xml
 
+PRODUCT_PACKAGES += \
+    libdashplayer \
+    libOmxAacEnc \
+    libOmxAmrEnc \
+    libOmxCore \
+    libOmxEvrcEnc \
+    libOmxQcelp13Enc \
+    libOmxVdec \
+    libOmxVenc \
+    libstagefrighthw
+
 # Power HAL
 PRODUCT_PACKAGES += \
     power.msm8996
 
 # Ramdisk
 PRODUCT_PACKAGES += \
+    init.crda.sh \
+    init.qcom.bt.sh \
+    init.qcom.coex.sh \
+    init.qcom.fm.sh \
+    init.qcom.post_boot.sh
+
+PRODUCT_PACKAGES += \
     fstab.qcom \
+    init.qcom.rc \
     init.qcom.usb.rc \
+    init.recovery.qcom.rc \
     ueventd.qcom.rc
 
+ifeq ($(TARGET_BUILD_VARIANT),user)
+PRODUCT_PACKAGES += \
+    init.qcom.ssr.rc
+endif
+
+# RIL
+PRODUCT_PACKAGES += \
+    libxml2
+
 # WLAN
+
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/wifi/hostapd.accept:system/etc/hostapd/hostapd.accept \
     $(LOCAL_PATH)/wifi/hostapd.conf:system/etc/hostapd/hostapd.conf \
