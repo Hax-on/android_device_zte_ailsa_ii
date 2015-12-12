@@ -138,18 +138,36 @@ PRODUCT_PACKAGES += \
 
 # Ramdisk
 PRODUCT_PACKAGES += \
-    init.crda.sh \
+    init.target.rc \
     init.qcom.bt.sh \
+    hsic.control.bt.sh \
     init.qcom.coex.sh \
     init.qcom.fm.sh \
-    init.qcom.post_boot.sh
-
-PRODUCT_PACKAGES += \
-    fstab.qcom \
+    init.qcom.early_boot.sh \
+    init.qcom.post_boot.sh \
+    init.qcom.syspart_fixup.sh \
     init.qcom.rc \
+    init.qcom.factory.rc \
+    init.qcom.sdio.sh \
+    init.qcom.sh \
+    init.qcom.class_core.sh \
+    init.class_main.sh \
+    init.qcom.wifi.sh \
     init.qcom.usb.rc \
-    init.recovery.qcom.rc \
-    ueventd.qcom.rc
+    init.qcom.usb.sh \
+    usf_post_boot.sh \
+    init.qcom.efs.sync.sh \
+    ueventd.qcom.rc \
+    init.ath3k.bt.sh \
+    qca6234-service.sh \
+    init.qcom.audio.sh \
+    ssr_setup \
+    init.mdm.sh \
+    init.qcom.uicc.sh \
+    fstab.qcom \
+    init.qcom.debug.sh \
+    init.qcom.zram.sh \
+    init.qcom.sensors.sh
 
 ifeq ($(TARGET_BUILD_VARIANT),user)
 PRODUCT_PACKAGES += \
