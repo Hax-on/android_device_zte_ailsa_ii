@@ -87,6 +87,11 @@ QCOM_BT_USE_BTNV := true
 QCOM_BT_USE_SMD_TTY := true
 WCNSS_FILTER_USES_SIBS := true
 
+# Camera
+PRODUCT_PACKAGES += \
+    camera.msm8994 \
+    libmm-qcamera
+
 # Display
 PRODUCT_PACKAGES += \
     copybit.msm8996 \
@@ -101,7 +106,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # GPS
 PRODUCT_PACKAGES += \
-    gps.msm8994
+    gps.msm8996
 
 # irqbalance
 PRODUCT_COPY_FILES += \
@@ -177,6 +182,10 @@ endif
 # RIL
 PRODUCT_PACKAGES += \
     libxml2
+
+# Sensors
+PRODUCT_PACKAGES += \
+    sensors.msm8996
 
 # WLAN
 
