@@ -100,6 +100,7 @@ target=`getprop ro.board.platform`
 baseband=`getprop ro.baseband`
 echo 1  > /sys/class/android_usb/f_mass_storage/lun/nofua
 usb_config=`getprop persist.sys.usb.config`
+debuggable=`getprop ro.debuggable`
 case "$usb_config" in
     "" | "adb") #USB persist config not set, select default configuration
       case "$esoc_link" in
@@ -147,7 +148,8 @@ case "$usb_config" in
 			    then
                                setprop persist.sys.usb.config diag,adb
 			    else
-			       setprop persist.sys.usb.config diag,serial_cdev,serial_tty,rmnet_ipa,mass_storage,adb
+			       #setprop persist.sys.usb.config diag,serial_cdev,serial_tty,rmnet_ipa,mass_storage,adb
+			       setprop persist.sys.usb.config diag,adb
 			    fi
 			;;
                         "msm8909" | "msm8937")
@@ -162,7 +164,16 @@ case "$usb_config" in
           ;;
       esac
     ;;
-    * ) ;; #USB persist config exists, do nothing
+    * ) #USB persist config exists, process adb according to eng/user build
+        case "$debuggable" in
+            "1")
+                if [ "$usb_config" = "${usb_config/adb}" ]; then
+                    usb_config=$usb_config,adb
+                    setprop persist.sys.usb.config $usb_config
+                fi
+                ;;
+        esac
+    ;;
 esac
 
 #
