@@ -32,6 +32,8 @@
 start_sensors()
 {
     if [ -c /dev/msm_dsps -o -c /dev/sensors ]; then
+        touch /persist/sensors/sensors_settings
+        echo 1 > /persist/sensors/sensors_settings
         chmod -h 775 /persist/sensors
         chmod -h 664 /persist/sensors/sensors_settings
         chown -h system.root /persist/sensors/sensors_settings
