@@ -171,6 +171,9 @@ TARGET_RIL_VARIANT := caf
 # SELinux
 include device/qcom/sepolicy/sepolicy.mk
 
+# Sensors
+USE_SENSOR_MULTI_HAL := true
+
 # Time services
 BOARD_USES_QC_TIME_SERVICES := true
 
