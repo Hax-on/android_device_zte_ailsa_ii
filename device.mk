@@ -196,6 +196,9 @@ PRODUCT_PACKAGES += \
 # Sensors
 PRODUCT_PACKAGES += \
     sensors.msm8996
+# Sensor HAL conf file
+PRODUCT_COPY_FILES += \
+    device/zte/chowder/sensors/hals.conf:system/etc/sensors/hals.conf
 
 # WLAN
 
