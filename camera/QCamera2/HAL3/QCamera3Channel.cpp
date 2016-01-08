@@ -715,7 +715,8 @@ QCamera3ProcessingChannel::QCamera3ProcessingChannel(uint32_t cam_handle,
             m_pMetaChannel(metadataChannel),
             mMetaFrame(NULL),
             mOfflineMemory(0),
-            mOfflineMetaMemory(numBuffers, false)
+            mOfflineMetaMemory(numBuffers + (MAX_REPROCESS_PIPELINE_STAGES - 1),
+                    false)
 {
     char prop[PROPERTY_VALUE_MAX];
     property_get("persist.debug.sf.showfps", prop, "0");
@@ -821,6 +822,27 @@ void QCamera3ProcessingChannel::streamCbRoutine(mm_camera_super_buf_t *super_fra
     }
     free(super_frame);
     return;
+}
+
+/*===========================================================================
+ * FUNCTION   : putStreamBufs
+ *
+ * DESCRIPTION: release the buffers allocated to the stream
+ *
+ * PARAMETERS : NONE
+ *
+ * RETURN     : NONE
+ *==========================================================================*/
+void QCamera3YUVChannel::putStreamBufs()
+{
+    QCamera3ProcessingChannel::putStreamBufs();
+
+    // Free allocated heap buffer.
+    mMemory.deallocate();
+    // Clear free heap buffer list.
+    mFreeHeapBufferList.clear();
+    // Clear offlinePpInfoList
+    mOfflinePpInfoList.clear();
 }
 
 /*===========================================================================
@@ -939,7 +961,8 @@ int32_t QCamera3ProcessingChannel::initialize(cam_is_type_t isType)
     if (rc == NO_ERROR) {
         Mutex::Autolock lock(mFreeOfflineMetaBuffersLock);
         mFreeOfflineMetaBuffersList.clear();
-        for (uint32_t i = 0; i < mNumBuffers; i++) {
+        for (uint32_t i = 0; i < mNumBuffers + (MAX_REPROCESS_PIPELINE_STAGES - 1);
+                i++) {
             mFreeOfflineMetaBuffersList.push_back(i);
         }
     } else {
@@ -1065,7 +1088,8 @@ int32_t QCamera3ProcessingChannel::setFwkInputPPData(qcamera_fwk_input_pp_data_t
 
         metaBufIdx = *(mFreeOfflineMetaBuffersList.begin());
         mFreeOfflineMetaBuffersList.erase(mFreeOfflineMetaBuffersList.begin());
-        CDBG("%s: erasing %d", __func__, metaBufIdx);
+        CDBG("%s: erasing %d, mFreeOfflineMetaBuffersList.size %d", __func__, metaBufIdx,
+                mFreeOfflineMetaBuffersList.size());
     }
 
     mOfflineMetaMemory.markFrameNumber(metaBufIdx, frameNumber);
@@ -3627,8 +3651,13 @@ QCamera3ReprocessChannel::QCamera3ReprocessChannel(uint32_t cam_handle,
                                                  cam_padding_info_t *paddingInfo,
                                                  uint32_t postprocess_mask,
                                                  void *userData, void *ch_hdl) :
-    QCamera3Channel(cam_handle, cam_ops, cb_routine, paddingInfo, postprocess_mask,
-                    userData, ((QCamera3ProcessingChannel *)ch_hdl)->getNumBuffers()),
+    /* In case of framework reprocessing, pproc and jpeg operations could be
+     * parallelized by allowing 1 extra buffer for reprocessing output:
+     * ch_hdl->getNumBuffers() + 1 */
+    QCamera3Channel(cam_handle, cam_ops, cb_routine, paddingInfo,
+                    postprocess_mask, userData,
+                    ((QCamera3ProcessingChannel *)ch_hdl)->getNumBuffers()
+                              + (MAX_REPROCESS_PIPELINE_STAGES - 1)),
     inputChHandle(ch_hdl),
     mOfflineBuffersIndex(-1),
     mReprocessType(REPROCESS_TYPE_NONE),
@@ -3958,9 +3987,12 @@ QCamera3Stream * QCamera3ReprocessChannel::getSrcStreamBySrcHandle(uint32_t srcH
  *==========================================================================*/
 int32_t QCamera3ReprocessChannel::stop()
 {
+    int32_t rc = NO_ERROR;
+
+    rc = QCamera3Channel::stop();
     unmapOfflineBuffers(true);
 
-    return QCamera3Channel::stop();
+    return rc;
 }
 
 /*===========================================================================

@@ -101,6 +101,13 @@ typedef struct{
     size_t supported_white_balances_cnt;
     cam_wb_mode_type supported_white_balances[CAM_WB_MODE_MAX];
 
+    /* Capability list of supported insensor HDR types
+     * Backend is expected to fill in all the supported types and set appropriate
+     * count, see cam_sensor_hdr_type_t for valid types
+    */
+    size_t supported_sensor_hdr_types_cnt;
+    cam_sensor_hdr_type_t supported_sensor_hdr_types[CAM_SENSOR_HDR_MAX];
+
     /* supported manual wb cct */
     int32_t min_wb_cct;
     int32_t max_wb_cct;
@@ -158,6 +165,9 @@ typedef struct{
     size_t hfr_tbl_cnt;                                     /* table size for HFR */
     cam_hfr_info_t hfr_tbl[CAM_HFR_MODE_MAX];               /* HFR table */
 
+    size_t zzhdr_sizes_tbl_cnt;                             /* Number of resolutions in zzHDR mode*/
+    cam_dimension_t zzhdr_sizes_tbl[MAX_SIZES_CNT];         /* Table for ZZHDR supported sizes */
+
     /* supported preview formats */
     size_t supported_preview_fmt_cnt;
     cam_format_t supported_preview_fmts[CAM_FORMAT_MAX];
@@ -166,7 +176,8 @@ typedef struct{
     size_t supported_picture_fmt_cnt;
     cam_format_t supported_picture_fmts[CAM_FORMAT_MAX];
 
-    uint8_t max_downscale_factor;
+    uint8_t max_vfe_downscale_factor;
+    uint8_t max_cpp_downscale_factor;
 
     /* dimension and supported output format of raw dump from camif */
     size_t supported_raw_dim_cnt;
@@ -413,10 +424,6 @@ typedef struct{
     /* Count is K/4 */
     uint8_t optical_black_region_count;
 
-    /* hot pixel */
-    uint8_t hotPixel_mode;
-    uint32_t hotPixel_count;
-    cam_coordinate_type_t hotPixelMap[512];
 } cam_capability_t;
 
 typedef enum {
@@ -835,8 +842,8 @@ typedef struct {
     INCLUDE(CAM_INTF_PARM_CONTRAST,                     int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_SATURATION,                   int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_BRIGHTNESS,                   int32_t,                     1);
-    INCLUDE(CAM_INTF_PARM_ISO,                          cam_intf_parm_manual_3a_t,   1);
-    INCLUDE(CAM_INTF_PARM_EXPOSURE_TIME,                cam_intf_parm_manual_3a_t,   1);
+    INCLUDE(CAM_INTF_PARM_ISO,                          int32_t,                     1);
+    INCLUDE(CAM_INTF_PARM_EXPOSURE_TIME,                uint64_t,                    1);
     INCLUDE(CAM_INTF_PARM_ZOOM,                         int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_ROLLOFF,                      int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_MODE,                         int32_t,                     1);

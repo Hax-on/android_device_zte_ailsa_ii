@@ -138,7 +138,7 @@ public:
     static void makeOverridesList(cam_scene_mode_overrides_t *overridesTable,
             size_t size, size_t max_size, uint8_t *overridesList,
             uint8_t *supported_indexes, uint32_t camera_id);
-    static size_t filterJpegSizes(int32_t *jpegSizes, int32_t *processedSizes,
+    static size_t filterSizes(int32_t *filteredSizes, int32_t *processedSizes,
             size_t processedSizesCnt, size_t maxCount, cam_rect_t active_array_size,
             uint8_t downscale_factor);
     static void convertToRegions(cam_rect_t rect, int32_t* region, int weight);
@@ -161,7 +161,6 @@ public:
     int configureStreamsPerfLocked(camera3_stream_configuration_t *stream_list);
     int processCaptureRequest(camera3_capture_request_t *request);
     void dump(int fd);
-    int flush();
     int flushPerf();
 
     int setFrameParameters(camera3_capture_request_t *request,
@@ -219,29 +218,37 @@ private:
     // State transition conditions:
     // "\" means not applicable
     // "x" means not valid
-    // +------------+----------+----------+-------------+------------+---------+
-    // |            |  CLOSED  |  OPENED  | INITIALIZED | CONFIGURED | STARTED |
-    // +------------+----------+----------+-------------+------------+---------+
-    // |  CLOSED    |    \     |   open   |     x       |    x       |    x    |
-    // +------------+----------+----------+-------------+------------+---------+
-    // |  OPENED    |  close   |    \     | initialize  |    x       |    x    |
-    // +------------+----------+----------+-------------+------------+---------+
-    // |INITIALIZED |  close   |    x     |     \       | configure  |   x     |
-    // +------------+----------+----------+-------------+------------+---------+
-    // | CONFIGURED |  close   |    x     |     x       | configure  | request |
-    // +------------+----------+----------+-------------+------------+---------+
-    // |  STARTED   |  close   |    x     |     x       | configure  |    \    |
-    // +------------+----------+----------+-------------+------------+---------+
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |            |  CLOSED  |  OPENED  | INITIALIZED | CONFIGURED | STARTED | ERROR | DEINIT |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |  CLOSED    |    \     |   open   |     x       |    x       |    x    |   x   |   x    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |  OPENED    |  close   |    \     | initialize  |    x       |    x    | error |   x    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |INITIALIZED |  close   |    x     |     \       | configure  |   x     | error |   x    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // | CONFIGURED |  close   |    x     |     x       | configure  | request | error |   x    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |  STARTED   |  close   |    x     |     x       | configure  |    \    | error |   x    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |   ERROR    |  close   |    x     |     x       |     x      |    x    |   \   |  any   |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+    // |   DEINIT   |  close   |    x     |     x       |     x      |    x    |   x   |   \    |
+    // +------------+----------+----------+-------------+------------+---------+-------+--------+
+
     typedef enum {
         CLOSED,
         OPENED,
         INITIALIZED,
         CONFIGURED,
         STARTED,
+        ERROR,
+        DEINIT
     } State;
 
     int openCamera();
     int closeCamera();
+    int flush(bool restartChannels);
     static size_t calcMaxJpegSize(uint32_t camera_id);
     cam_dimension_t getMaxRawSize(uint32_t camera_id);
     static void addStreamConfig(Vector<int32_t> &available_stream_configs,
@@ -281,7 +288,6 @@ private:
     int32_t numOfSizesOnEncoder(const camera3_stream_configuration_t *streamList,
             const cam_dimension_t &maxViewfinderSize);
 
-    void addToPPFeatureMask(int stream_format, uint32_t stream_idx);
     void updateFpsInPreviewBuffer(metadata_buffer_t *metadata, uint32_t frame_number);
 
     void enablePowerHint();
@@ -291,6 +297,7 @@ private:
     int32_t stopAllChannels();
     int32_t notifyErrorForPendingRequests();
     int32_t getReprocessibleOutputStreamId(uint32_t &id);
+    int32_t handleCameraDeviceError();
 
     bool isOnEncoder(const cam_dimension_t max_viewfinder_size,
             uint32_t width, uint32_t height);

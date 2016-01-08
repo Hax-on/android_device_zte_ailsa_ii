@@ -38,8 +38,8 @@
 #include <gralloc_priv.h>
 #include <sys/sysinfo.h>
 #include "QCameraBufferMaps.h"
-#include "QCamera2HWI.h"
 #include "QCameraParameters.h"
+#include "QCamera2HWI.h"
 
 #define PI 3.14159265
 #define ASPECT_TOLERANCE 0.001
@@ -325,9 +325,6 @@ const char QCameraParameters::VALUE_ON[] = "on";
 const char QCameraParameters::VALUE_TRUE[] = "true";
 const char QCameraParameters::VALUE_FALSE[] = "false";
 
-const char QCameraParameters::VALUE_FAST[] = "fast";
-const char QCameraParameters::VALUE_HIGH_QUALITY[] = "high-quality";
-
 const char QCameraParameters::KEY_QC_SHARPNESS[] = "sharpness";
 const char QCameraParameters::KEY_QC_MIN_SHARPNESS[] = "min-sharpness";
 const char QCameraParameters::KEY_QC_MAX_SHARPNESS[] = "max-sharpness";
@@ -415,8 +412,6 @@ const char QCameraParameters::CDS_MODE_OFF[] = "off";
 const char QCameraParameters::CDS_MODE_ON[] = "on";
 const char QCameraParameters::CDS_MODE_AUTO[] = "auto";
 
-const char QCameraParameters::KEY_SELECTED_AUTO_SCENE[] = "selected-auto-scene";
-
 // Values for video rotation settings.
 const char QCameraParameters::VIDEO_ROTATION_0[] = "0";
 const char QCameraParameters::VIDEO_ROTATION_90[] = "90";
@@ -433,8 +428,6 @@ const char QCameraParameters::KEY_QC_EXP_TIME_PRIORITY[] = "exp-time-priority";
 const char QCameraParameters::KEY_QC_USER_SETTING[] = "user-setting";
 const char QCameraParameters::KEY_QC_WB_CCT_MODE[] = "color-temperature";
 const char QCameraParameters::KEY_QC_WB_GAIN_MODE[] = "rbgb-gains";
-const char QCameraParameters::KEY_QC_NOISE_REDUCTION_MODE[] = "noise-reduction-mode";
-const char QCameraParameters::KEY_QC_NOISE_REDUCTION_MODE_VALUES[] = "noise-reduction-mode-values";
 
 #ifdef TARGET_TS_MAKEUP
 const char QCameraParameters::KEY_TS_MAKEUP[] = "tsmakeup";
@@ -774,13 +767,6 @@ const QCameraParameters::QCameraMap<int>
     { VIDEO_ROTATION_270, 270 }
 };
 
-const QCameraParameters::QCameraMap<int>
-        QCameraParameters::NOISE_REDUCTION_MODES_MAP[] = {
-    { VALUE_OFF, 0 },
-    { VALUE_FAST,  1 },
-    { VALUE_HIGH_QUALITY,  2 }
-};
-
 #define DEFAULT_CAMERA_AREA "(0, 0, 0, 0, 0)"
 #define DATA_PTR(MEM_OBJ,INDEX) MEM_OBJ->getPtr( INDEX )
 #define TOTAL_RAM_SIZE_512MB 536870912
@@ -797,7 +783,7 @@ const QCameraParameters::QCameraMap<int>
  *==========================================================================*/
 QCameraParameters::QCameraParameters()
     : CameraParameters(),
-      m_reprocScaleParam(this),
+      m_reprocScaleParam(),
       m_pCapability(NULL),
       m_pCamOpsTbl(NULL),
       m_pParamHeap(NULL),
@@ -854,11 +840,9 @@ QCameraParameters::QCameraParameters()
       m_SelectedScene(CAM_SCENE_MODE_MAX),
       m_bSeeMoreOn(false),
       m_bStillMoreOn(false),
-      m_bHighQualityNoiseReductionMode(false),
       m_bHfrMode(false),
       m_bSensorHDREnabled(false),
       m_bRdiMode(false),
-      m_bDisplayFrame(true),
       m_bSecureMode(false),
       m_bAeBracketingEnabled(false),
       mFlashValue(CAM_FLASH_MODE_OFF),
@@ -871,17 +855,12 @@ QCameraParameters::QCameraParameters()
       mCds_mode(CAM_CDS_MODE_OFF),
       m_LLCaptureEnabled(FALSE),
       m_LowLightLevel(CAM_LOW_LIGHT_OFF),
-      m_bLtmForSeeMoreEnabled(false),
-      m_expTime(0),
-      m_isoValue(0),
-      m_ManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_OFF)
+      m_bLtmForSeeMoreEnabled(false)
 {
     char value[PROPERTY_VALUE_MAX];
     // TODO: may move to parameter instead of sysprop
     property_get("persist.debug.sf.showfps", value, "0");
     m_bDebugFps = atoi(value) > 0 ? true : false;
-    m_bReleaseTorchCamera = false;
-    m_pTorch = NULL;
 
     // For thermal mode, it should be set as system property
     // because system property applies to all applications, while
@@ -929,7 +908,7 @@ QCameraParameters::QCameraParameters()
  *==========================================================================*/
 QCameraParameters::QCameraParameters(const String8 &params)
     : CameraParameters(params),
-    m_reprocScaleParam(this),
+    m_reprocScaleParam(),
     m_pCapability(NULL),
     m_pCamOpsTbl(NULL),
     m_pParamHeap(NULL),
@@ -980,7 +959,6 @@ QCameraParameters::QCameraParameters(const String8 &params)
     m_SelectedScene(CAM_SCENE_MODE_MAX),
     m_bSeeMoreOn(false),
     m_bStillMoreOn(false),
-    m_bHighQualityNoiseReductionMode(false),
     m_bHfrMode(false),
     m_bSensorHDREnabled(false),
     m_bRdiMode(false),
@@ -997,18 +975,13 @@ QCameraParameters::QCameraParameters(const String8 &params)
     mParmEffect(CAM_EFFECT_MODE_OFF),
     m_LLCaptureEnabled(FALSE),
     m_LowLightLevel(CAM_LOW_LIGHT_OFF),
-    m_bLtmForSeeMoreEnabled(false),
-    m_expTime(0),
-    m_isoValue(0),
-    m_ManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_OFF)
+    m_bLtmForSeeMoreEnabled(false)
 {
     memset(&m_LiveSnapshotSize, 0, sizeof(m_LiveSnapshotSize));
     memset(&m_default_fps_range, 0, sizeof(m_default_fps_range));
     memset(&m_hfrFpsRange, 0, sizeof(m_hfrFpsRange));
     memset(&m_stillmore_config, 0, sizeof(cam_still_more_t));
     memset(&m_relCamSyncInfo, 0, sizeof(cam_sync_related_sensors_event_info_t));
-    m_pTorch = NULL;
-    m_bReleaseTorchCamera = false;
     mTotalPPCount = 0;
     mZoomLevel = 0;
     mParmZoomLevel = 0;
@@ -3006,18 +2979,7 @@ int32_t  QCameraParameters::setISOValue(const QCameraParameters& params)
 {
     const char *str = params.get(KEY_QC_ISO_MODE);
     const char *prev_str = get(KEY_QC_ISO_MODE);
-
-    if(getManualCaptureMode()) {
-        char iso_val[PROPERTY_VALUE_MAX];
-
-        property_get("persist.camera.iso", iso_val, "");
-        if (strlen(iso_val) > 0) {
-            if (prev_str == NULL ||
-                    strcmp(iso_val, prev_str) != 0) {
-                return setISOValue(iso_val);
-            }
-        }
-    } else if (str != NULL) {
+    if (str != NULL) {
         if (prev_str == NULL ||
             strcmp(str, prev_str) != 0) {
             return setISOValue(str);
@@ -3055,12 +3017,7 @@ int32_t  QCameraParameters::setContinuousISO(const char *isoValue)
             (continous_iso <= m_pCapability->sensitivity_range.max_sensitivity)) {
         CDBG_HIGH("%s: Setting continuous ISO value %d", __func__, continous_iso);
         updateParamEntry(KEY_QC_CONTINUOUS_ISO, isoValue);
-
-        cam_intf_parm_manual_3a_t iso_settings;
-        memset(&iso_settings, 0, sizeof(cam_intf_parm_manual_3a_t));
-        iso_settings.previewOnly = FALSE;
-        iso_settings.value = continous_iso;
-        if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, iso_settings)) {
+        if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, continous_iso)) {
             return BAD_VALUE;
         }
         return NO_ERROR;
@@ -3089,16 +3046,6 @@ int32_t  QCameraParameters::setExposureTime(const QCameraParameters& params)
         if (prev_str == NULL ||
                 strcmp(str, prev_str) != 0) {
             return setExposureTime(str);
-        }
-    } else if(getManualCaptureMode()) {
-        char expTime[PROPERTY_VALUE_MAX];
-
-        property_get("persist.camera.exposure.time", expTime, "");
-        if (strlen(expTime) > 0) {
-            if (prev_str == NULL ||
-                    strcmp(expTime, prev_str) != 0) {
-                return setExposureTime(expTime);
-            }
         }
     }
 
@@ -3477,7 +3424,7 @@ int32_t QCameraParameters::setSceneMode(const QCameraParameters& params)
             if (strcmp(str, SCENE_MODE_HDR) == 0) {
 
                 // If HDR is set from client  and the feature is not enabled in the backend, ignore it.
-                if (m_bHDRModeSensor) {
+                if (m_bHDRModeSensor && isSupportedSensorHdrSize(params)) {
                     m_bSensorHDREnabled = true;
                     CDBG_HIGH("%s: Sensor HDR mode Enabled",__func__);
                 } else {
@@ -3840,36 +3787,6 @@ int32_t QCameraParameters::setSeeMore(const QCameraParameters& params)
 }
 
 /*===========================================================================
- * FUNCTION   : setNoiseReductionMode
- *
- * DESCRIPTION: set noise reduction mode from user setting
- *
- * PARAMETERS :
- *   @params  : user setting parameters
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::setNoiseReductionMode(const QCameraParameters& params)
-{
-    if ((m_pCapability->qcom_supported_feature_mask & CAM_QTI_FEATURE_SW_TNR) == 0) {
-        CDBG("%s: SW TNR is not supported",__func__);
-        return NO_ERROR;
-    }
-    const char *str = params.get(KEY_QC_NOISE_REDUCTION_MODE);
-    const char *prev_str = get(KEY_QC_NOISE_REDUCTION_MODE);
-    CDBG_HIGH("%s: str =%s & prev_str =%s", __func__, str, prev_str);
-    if (str != NULL) {
-        if (prev_str == NULL || strcmp(str, prev_str) != 0) {
-            m_bNeedRestart = true;
-            return setNoiseReductionMode(str);
-        }
-    }
-    return NO_ERROR;
-}
-
-/*===========================================================================
  * FUNCTION   : setStillMore
  *
  * DESCRIPTION: set stillmore from user setting
@@ -4170,46 +4087,6 @@ int32_t QCameraParameters::setZslMode(const QCameraParameters& params)
         if (!m_bZslMode) {
             // Force ZSL mode to ON
             set(KEY_QC_ZSL, VALUE_ON);
-            setZslMode(TRUE);
-            CDBG_HIGH("%s: ZSL Mode forced to be enabled", __func__);
-        }
-    } else if (str_val != NULL) {
-        if (prev_val == NULL || strcmp(str_val, prev_val) != 0) {
-            int32_t value = lookupAttr(ON_OFF_MODES_MAP, PARAM_MAP_SIZE(ON_OFF_MODES_MAP),
-                    str_val);
-            if (value != NAME_NOT_FOUND) {
-                set(KEY_QC_ZSL, str_val);
-                rc = setZslMode(value);
-                // ZSL mode changed, need restart preview
-                m_bNeedRestart = true;
-            } else {
-                ALOGE("Invalid ZSL mode value: %s", str_val);
-                rc = BAD_VALUE;
-            }
-        }
-    }
-    return rc;
-}
-
-/*===========================================================================
- * FUNCTION   : setZslMode
- *
- * DESCRIPTION: set ZSL mode from user setting
- *
- * PARAMETERS :
- *   @value  : ZSL mode value
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::setZslMode(bool value)
-{
-    int32_t rc = NO_ERROR;
-    if(m_bForceZslMode) {
-        if (!m_bZslMode) {
-            // Force ZSL mode to ON
-            set(KEY_QC_ZSL, VALUE_ON);
             m_bZslMode_new = true;
             m_bZslMode = true;
             m_bNeedRestart = true;
@@ -4221,49 +4098,28 @@ int32_t QCameraParameters::setZslMode(bool value)
 
             CDBG_HIGH("%s: ZSL Mode forced to be enabled", __func__);
         }
-    } else {
-        CDBG_HIGH("%s: ZSL Mode  -> %s", __func__, m_bZslMode_new ? "Enabled" : "Disabled");
-        m_bZslMode_new = (value > 0)? true : false;
-        if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ZSL_MODE, value)) {
-            rc = BAD_VALUE;
+    } else if (str_val != NULL) {
+        if (prev_val == NULL || strcmp(str_val, prev_val) != 0) {
+            int32_t value = lookupAttr(ON_OFF_MODES_MAP, PARAM_MAP_SIZE(ON_OFF_MODES_MAP),
+                    str_val);
+            if (value != NAME_NOT_FOUND) {
+                set(KEY_QC_ZSL, str_val);
+                m_bZslMode_new = (value > 0)? true : false;
+
+                // ZSL mode changed, need restart preview
+                m_bNeedRestart = true;
+                CDBG_HIGH("%s: ZSL Mode  -> %s", __func__, m_bZslMode_new ? "Enabled" : "Disabled");
+
+                if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ZSL_MODE, value)) {
+                    rc = BAD_VALUE;
+                }
+            } else {
+                ALOGE("Invalid ZSL mode value: %s", str_val);
+                rc = BAD_VALUE;
+            }
         }
     }
     ALOGI("%s: enabled: %d", __func__, m_bZslMode_new);
-    return rc;
-}
-
-/*===========================================================================
- * FUNCTION   : updateZSLModeValue
- *
- * DESCRIPTION: update zsl mode value locally and to daemon
- *
- * PARAMETERS :
- *   @value   : zsl mode value
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::updateZSLModeValue(bool value)
-{
-    int32_t rc = NO_ERROR;
-    if(initBatchUpdate(m_pParamBuf) < 0 ) {
-        ALOGE("%s:Failed to initialize group update table", __func__);
-        return BAD_TYPE;
-    }
-
-    rc = setZslMode(value);
-    if (rc != NO_ERROR) {
-        ALOGE("%s:Failed to ZSL value", __func__);
-        return rc;
-    }
-
-    rc = commitSetBatch();
-    if (rc != NO_ERROR) {
-        ALOGE("%s:Failed to update recording hint", __func__);
-        return rc;
-    }
-
     return rc;
 }
 
@@ -4865,6 +4721,71 @@ int32_t QCameraParameters::setLongshotParam(const QCameraParameters& params)
 }
 
 /*===========================================================================
+ * FUNCTION   : checkFeatureConcurrency
+ *
+ * DESCRIPTION: check if there is a feature concurrency issue with advanced
+ *              camera features
+ *
+ * PARAMETERS : None
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraParameters::checkFeatureConcurrency()
+{
+    int32_t rc = NO_ERROR;
+    uint32_t advancedFeatEnableBit = 0;
+
+    if (isStillMoreEnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_STILLMORE;
+    }
+    if (isHDREnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_HDR;
+    }
+    if (isChromaFlashEnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_CHROMA_FLASH;
+    }
+    if (isUbiFocusEnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_UBIFOCUS;
+    }
+    if (isTruePortraitEnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_TRUEPORTRAIT;
+    }
+    if (isOptiZoomEnabled()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_OPTIZOOM;
+    }
+    if (isUbiRefocus()) {
+        advancedFeatEnableBit |= CAM_QCOM_FEATURE_REFOCUS;
+    }
+
+    if(m_bRecordingHint_new) {
+        advancedFeatEnableBit &= ~CAM_QCOM_FEATURE_STILLMORE;
+
+        if (advancedFeatEnableBit) {
+            ALOGE("%s:%d] Failed recording mode bit 0x%x", __func__, __LINE__,
+                    advancedFeatEnableBit);
+            rc = BAD_TYPE;
+        }
+    } else if (m_bZslMode_new) {
+        /* ZSL mode check if 2 bits are set */
+        if (advancedFeatEnableBit & (advancedFeatEnableBit - 1)) {
+            ALOGE("%s:%d] Failed ZSL mode bit 0x%x", __func__, __LINE__, advancedFeatEnableBit);
+            rc = BAD_TYPE;
+        }
+    } else { /* non-ZSL mode */
+        advancedFeatEnableBit &= ~CAM_QCOM_FEATURE_HDR;
+
+        /* non-ZSL mode check if 1 bit is set */
+        if (advancedFeatEnableBit) {
+            ALOGE("%s:%d] Failed non-ZSL mode bit 0x%x", __func__, __LINE__, advancedFeatEnableBit);
+            rc = BAD_TYPE;
+        }
+    }
+    return rc;
+}
+
+/*===========================================================================
  * FUNCTION   : updateParameters
  *
  * DESCRIPTION: update parameters from user setting
@@ -4877,12 +4798,13 @@ int32_t QCameraParameters::setLongshotParam(const QCameraParameters& params)
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraParameters::updateParameters(QCameraParameters& params,
+int32_t QCameraParameters::updateParameters(const String8& p,
         bool &needRestart)
 {
     int32_t final_rc = NO_ERROR;
     int32_t rc;
     m_bNeedRestart = false;
+    QCameraParameters params(p);
 
     if(initBatchUpdate(m_pParamBuf) < 0 ) {
         ALOGE("%s:Failed to initialize group update table",__func__);
@@ -4970,8 +4892,6 @@ int32_t QCameraParameters::updateParameters(QCameraParameters& params,
     if ((rc = setSeeMore(params)))                      final_rc = rc;
     if ((rc = setStillMore(params)))                    final_rc = rc;
     if ((rc = setCustomParams(params)))                 final_rc = rc;
-    if ((rc = setNoiseReductionMode(params)))           final_rc = rc;
-
     if ((rc = setLongshotParam(params)))                final_rc = rc;
 
     setVideoBatchSize();
@@ -5700,15 +5620,6 @@ int32_t QCameraParameters::initDefaultParameters()
         setStillMore(STILL_MORE_OFF);
     }
 
-    //Set Noise Reduction mode
-    if (m_pCapability->qcom_supported_feature_mask &
-            CAM_QTI_FEATURE_SW_TNR) {
-        String8 noiseReductionModesValues = createValuesStringFromMap(
-                NOISE_REDUCTION_MODES_MAP, PARAM_MAP_SIZE(NOISE_REDUCTION_MODES_MAP));
-        set(KEY_QC_NOISE_REDUCTION_MODE_VALUES, noiseReductionModesValues);
-        setNoiseReductionMode(VALUE_OFF);
-    }
-
     //Set Scene Detection
     set(KEY_QC_SUPPORTED_SCENE_DETECT, onOffValues);
     setSceneDetect(VALUE_OFF);
@@ -5887,8 +5798,6 @@ int32_t QCameraParameters::initDefaultParameters()
             pic_dim.height);
     setMaxPicSize(pic_dim);
 
-    setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_OFF);
-
     return rc;
 }
 
@@ -5920,6 +5829,9 @@ int32_t QCameraParameters::allocate()
     rc = m_pParamHeap->allocate(1, sizeof(parm_buffer_t), NON_SECURE);
     if(rc != OK) {
         rc = NO_MEMORY;
+        ALOGE("%s: Error!! Param buffers have not been allocated", __func__);
+        delete m_pParamHeap;
+        m_pParamHeap = NULL;
     }
 
     return rc;
@@ -5933,22 +5845,21 @@ int32_t QCameraParameters::allocate()
  * PARAMETERS :
  *   @capabilities  : ptr to camera capabilities
  *   @mmops         : ptr to memory ops table for mapping/unmapping
+ *   @adjustFPS     : object reference for additional (possibly thermal)
+ *                    framerate adjustment
  *
  * RETURN     : int32_t type of status
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
 int32_t QCameraParameters::init(cam_capability_t *capabilities,
-                                mm_camera_vtbl_t *mmOps,
-                                QCameraAdjustFPS *adjustFPS,
-                                QCameraTorchInterface *torch)
+        mm_camera_vtbl_t *mmOps, QCameraAdjustFPS *adjustFPS)
 {
     int32_t rc = NO_ERROR;
 
     m_pCapability = capabilities;
     m_pCamOpsTbl = mmOps;
     m_AdjustFPS = adjustFPS;
-    m_pTorch = torch;
 
     if (m_pParamHeap == NULL) {
         ALOGE("%s: Parameter buffers have not been allocated", __func__);
@@ -6025,7 +5936,6 @@ TRANS_INIT_ERROR1:
     m_pCapability = NULL;
     m_pCamOpsTbl = NULL;
     m_AdjustFPS = NULL;
-    m_pTorch = NULL;
 
 TRANS_INIT_DONE:
     return rc;
@@ -6055,9 +5965,11 @@ void QCameraParameters::deinit()
                              m_pCamOpsTbl->camera_handle,
                              CAM_MAPPING_BUF_TYPE_PARM_BUF);
 
-        m_pCamOpsTbl->ops->unmap_buf(
-                m_pCamOpsTbl->camera_handle,
-                CAM_MAPPING_BUF_TYPE_SYNC_RELATED_SENSORS_BUF);
+        if (m_relCamSyncInfo.sync_control == CAM_SYNC_RELATED_SENSORS_ON) {
+            m_pCamOpsTbl->ops->unmap_buf(
+                    m_pCamOpsTbl->camera_handle,
+                    CAM_MAPPING_BUF_TYPE_SYNC_RELATED_SENSORS_BUF);
+        }
     }
 
     m_pCapability = NULL;
@@ -6078,7 +5990,6 @@ void QCameraParameters::deinit()
     m_tempMap.clear();
     m_pCamOpsTbl = NULL;
     m_AdjustFPS = NULL;
-    m_pTorch = NULL;
 
     m_bInited = false;
 }
@@ -6164,23 +6075,7 @@ void QCameraParameters::parseSizesList(const char *sizesStr, Vector<Size> &sizes
 }
 
 /*===========================================================================
- * FUNCTION   : getSupportedHfrSizes
- *
- * DESCRIPTION: return supported HFR sizes
- *
- * PARAMETERS :
- *   @sizes  : [output] reference to a vector storing supported HFR sizes
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::getSupportedHfrSizes(Vector<Size> &sizes)
-{
-    const char *hfrSizesStr = get(KEY_QC_SUPPORTED_HFR_SIZES);
-    parseSizesList(hfrSizesStr, sizes);
-}
-
-/*===========================================================================
- * FUNCTION   : adjustPreviewFpsRanges
+ * FUNCTION   : adjustPreviewFpsRange
  *
  * DESCRIPTION: adjust preview FPS ranges
  *              according to external events
@@ -6267,8 +6162,14 @@ int32_t QCameraParameters::setPreviewFpsRange(int min_fps,
             __func__, min_fps, max_fps, vid_min_fps, vid_max_fps);
 
     if ( NULL != m_AdjustFPS ) {
-        if (m_ThermalMode == QCAMERA_THERMAL_ADJUST_FPS) {
-            m_AdjustFPS->recalcFPSRange(min_fps, max_fps, fps_range);
+        if (m_ThermalMode == QCAMERA_THERMAL_ADJUST_FPS &&
+                !m_bRecordingHint) {
+            float minVideoFps = min_fps, maxVideoFps = max_fps;
+            if (isHfrMode()) {
+                minVideoFps = m_hfrFpsRange.video_min_fps;
+                maxVideoFps = m_hfrFpsRange.video_max_fps;
+            }
+            m_AdjustFPS->recalcFPSRange(min_fps, max_fps, minVideoFps, maxVideoFps, fps_range);
             CDBG_HIGH("%s: Thermal adjusted Preview fps range %3.2f,%3.2f, %3.2f, %3.2f",
                   __func__, fps_range.min_fps, fps_range.max_fps,
                   fps_range.video_min_fps, fps_range.video_max_fps);
@@ -6671,6 +6572,17 @@ int32_t QCameraParameters::setSensorSnapshotHDR(const char *snapshotHDR)
         if (value != NAME_NOT_FOUND) {
             CDBG_HIGH("%s: Setting Sensor Snapshot HDR %s", __func__, snapshotHDR);
             updateParamEntry(KEY_QC_SENSOR_HDR, snapshotHDR);
+
+            char zz_prop[PROPERTY_VALUE_MAX];
+            memset(zz_prop, 0, sizeof(zz_prop));
+            property_get("persist.camera.zzhdr.enable", zz_prop, "0");
+            uint8_t zzhdr_enable = (uint8_t)atoi(zz_prop);
+
+            if (zzhdr_enable && (value != CAM_SENSOR_HDR_OFF)) {
+                value = CAM_SENSOR_HDR_ZIGZAG;
+                CDBG_HIGH("%s: Overriding to ZZ HDR Mode", __func__);
+            }
+
             if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_SENSOR_HDR, value)) {
                 return BAD_VALUE;
             }
@@ -6706,6 +6618,20 @@ int32_t QCameraParameters::setVideoHDR(const char *videoHDR)
             if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_VIDEO_HDR, value)) {
                 return BAD_VALUE;
             }
+
+            char zz_prop[PROPERTY_VALUE_MAX];
+            memset(zz_prop, 0, sizeof(zz_prop));
+            property_get("persist.camera.zzhdr.enable", zz_prop, "0");
+            uint8_t zzhdr_enable = (uint8_t)atoi(zz_prop);
+            if (zzhdr_enable && value) {
+                value = CAM_SENSOR_HDR_ZIGZAG;
+                CDBG_HIGH("%s: Overriding to ZZ HDR Mode", __func__);
+                if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_SENSOR_HDR, value)) {
+                    ALOGE("%s: Override to ZZ mode for video HDR failed", __func__);
+                    return BAD_VALUE;
+                }
+            }
+
             return NO_ERROR;
         }
     }
@@ -6851,19 +6777,9 @@ int32_t  QCameraParameters::setISOValue(const char *isoValue)
         if (value != NAME_NOT_FOUND) {
             CDBG_HIGH("%s: Setting ISO value %s", __func__, isoValue);
             updateParamEntry(KEY_QC_ISO_MODE, isoValue);
-
-            cam_intf_parm_manual_3a_t iso_settings;
-            memset(&iso_settings, 0, sizeof(cam_intf_parm_manual_3a_t));
-            iso_settings.previewOnly = FALSE;
-            iso_settings.value = value;
-            if (getManualCaptureMode() != CAM_MANUAL_CAPTURE_TYPE_OFF) {
-                iso_settings.previewOnly = TRUE;
-            }
-
-            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, iso_settings)) {
+            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_ISO, value)) {
                 return BAD_VALUE;
             }
-            m_isoValue = value;
             return NO_ERROR;
         }
     }
@@ -6934,41 +6850,10 @@ int32_t  QCameraParameters::setExposureTime(const char *expTimeStr)
                 (expTimeNs <= m_pCapability->exposure_time_range[1])))) {
             CDBG_HIGH("%s, exposure time: %f ms", __func__, expTimeMs);
             updateParamEntry(KEY_QC_EXPOSURE_TIME, expTimeStr);
-
-            cam_intf_parm_manual_3a_t exp_settings;
-            memset(&exp_settings, 0, sizeof(cam_intf_parm_manual_3a_t));
-            if (getManualCaptureMode() != CAM_MANUAL_CAPTURE_TYPE_OFF) {
-                exp_settings.previewOnly = TRUE;
-                if (expTimeMs < QCAMERA_MAX_EXP_TIME_LEVEL1) {
-                    exp_settings.value = expTimeNs;
-                } else {
-                    exp_settings.value =
-                            (int64_t)(QCAMERA_MAX_EXP_TIME_LEVEL1*1000000L);
-                }
-            } else {
-                exp_settings.previewOnly = FALSE;
-                exp_settings.value = expTimeNs;
-            }
-
-            //Based on exposure values we can decide the capture type here
-            if (getManualCaptureMode() != CAM_MANUAL_CAPTURE_TYPE_OFF) {
-                if (expTimeMs < QCAMERA_MAX_EXP_TIME_LEVEL1) {
-                    setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_1);
-                } else if (expTimeMs < QCAMERA_MAX_EXP_TIME_LEVEL2) {
-                    setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_2);
-                } else if (expTimeMs < QCAMERA_MAX_EXP_TIME_LEVEL4) {
-                    setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_3);
-                } else {
-                    setManualCaptureMode(CAM_MANUAL_CAPTURE_TYPE_OFF);
-                }
-            }
-
             if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_EXPOSURE_TIME,
-                    exp_settings)) {
+                    (uint64_t)expTimeNs)) {
                 return BAD_VALUE;
             }
-            m_expTime = expTimeNs;
-
             return NO_ERROR;
         }
     }
@@ -7035,15 +6920,6 @@ int32_t QCameraParameters::setFlash(const char *flashStr)
         int32_t value = lookupAttr(FLASH_MODES_MAP, PARAM_MAP_SIZE(FLASH_MODES_MAP), flashStr);
         if (value != NAME_NOT_FOUND) {
             CDBG_HIGH("%s: Setting Flash value %s", __func__, flashStr);
-
-            if (NULL != m_pTorch && !m_bRecordingHint_new) {
-                if ( value == CAM_FLASH_MODE_TORCH ) {
-                    m_pTorch->prepareTorchCamera();
-                } else {
-                    m_bReleaseTorchCamera = true;
-                }
-            }
-
             updateParamEntry(KEY_FLASH_MODE, flashStr);
             mFlashValue = value;
             return NO_ERROR;
@@ -7299,50 +7175,6 @@ int32_t QCameraParameters::configureLowLight(cam_capture_frame_config_t &frame_c
 }
 
 /*===========================================================================
- * FUNCTION   : configureManualCapture
- *
- * DESCRIPTION: configure manual capture.
- *
- * PARAMETERS :
- *    @frame_config : output configaration structure to fill in.
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::configureManualCapture(cam_capture_frame_config_t &frame_config)
-{
-    int32_t rc = NO_ERROR;
-    uint32_t i = 0;
-
-    CDBG("%s: E",__func__);
-    if (getManualCaptureMode()) {
-        frame_config.num_batch = 1;
-        for (i = 0; i < frame_config.num_batch; i++) {
-            frame_config.configs[i].num_frames = getNumOfSnapshots();
-            frame_config.configs[i].type = CAM_CAPTURE_MANUAL_3A;
-            if (m_expTime != 0) {
-                frame_config.configs[i].manual_3A_mode.exp_mode = CAM_SETTINGS_TYPE_ON;
-                frame_config.configs[i].manual_3A_mode.exp_time = m_expTime;
-            } else {
-                frame_config.configs[i].manual_3A_mode.exp_mode = CAM_SETTINGS_TYPE_AUTO;
-                frame_config.configs[i].manual_3A_mode.exp_time = 0;
-            }
-
-            if (m_isoValue != 0) {
-                frame_config.configs[i].manual_3A_mode.iso_mode = CAM_SETTINGS_TYPE_ON;
-                frame_config.configs[i].manual_3A_mode.iso_value = m_isoValue;
-            } else {
-                frame_config.configs[i].manual_3A_mode.iso_mode = CAM_SETTINGS_TYPE_AUTO;
-                frame_config.configs[i].manual_3A_mode.iso_value = 0;
-            }
-        }
-    }
-    CDBG("%s X: batch cnt = %d", __func__, frame_config.num_batch);
-    return rc;
-}
-
-/*===========================================================================
  * FUNCTION   : configFrameCapture
  *
  * DESCRIPTION: configuration for ZSL special captures (FLASH/HDR etc)
@@ -7369,8 +7201,7 @@ int32_t QCameraParameters::configFrameCapture(bool commitSettings)
     }
 
     if (isHDREnabled() || m_bAeBracketingEnabled || m_bAFBracketingOn ||
-          m_bOptiZoomOn || m_bReFocusOn || m_LowLightLevel
-          || getManualCaptureMode()) {
+          m_bOptiZoomOn || m_bReFocusOn || m_LowLightLevel) {
         value = CAM_FLASH_MODE_OFF;
     } else if (isChromaFlashEnabled()) {
         value = CAM_FLASH_MODE_ON;
@@ -7387,13 +7218,6 @@ int32_t QCameraParameters::configFrameCapture(bool commitSettings)
     } else if (m_LowLightLevel) {
         configureLowLight (m_captureFrameConfig);
 
-        //Added reset capture type as a last batch for back-end to restore settings.
-        int32_t batch_count = m_captureFrameConfig.num_batch;
-        m_captureFrameConfig.configs[batch_count].type = CAM_CAPTURE_RESET;
-        m_captureFrameConfig.configs[batch_count].num_frames = 0;
-        m_captureFrameConfig.num_batch++;
-    } else if (getManualCaptureMode() >= CAM_MANUAL_CAPTURE_TYPE_2){
-        rc = configureManualCapture (m_captureFrameConfig);
         //Added reset capture type as a last batch for back-end to restore settings.
         int32_t batch_count = m_captureFrameConfig.num_batch;
         m_captureFrameConfig.configs[batch_count].type = CAM_CAPTURE_RESET;
@@ -8374,6 +8198,51 @@ int32_t QCameraParameters::setMeteringAreas(const char *meteringAreasStr)
     return NO_ERROR;
 }
 
+
+/*===========================================================================
+ * FUNCTION   : isSupportedSensorHdrSize
+ *
+ * DESCRIPTION: Checks if the requested snapshot size is compatible with currently
+ *              configured HDR mode, currently primary target for validation is
+ *              zzhdr however this function can be extended in the future to vet
+ *              all sensor based HDR configs
+ *
+ * PARAMETERS :
+ *   @params  : CameraParameters object
+ *
+ * RETURN     : boolean type
+ *              True  -- indicates supported config
+ *              False -- indicated unsupported config should fallback to other
+ *              available HDR modes
+ *==========================================================================*/
+bool QCameraParameters::isSupportedSensorHdrSize(const QCameraParameters& params)
+{
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("persist.camera.zzhdr.enable", value, "0");
+    uint8_t zzhdr_enable = (uint8_t)atoi(value);
+
+    if (zzhdr_enable) {
+
+        int req_w, req_h;
+        params.getPictureSize(&req_w, &req_h);
+
+        // Check if requested w x h is in zzhdr supported list
+        for (size_t i = 0; i< m_pCapability->zzhdr_sizes_tbl_cnt; ++i) {
+
+            if (req_w == m_pCapability->zzhdr_sizes_tbl[i].width &&
+                    req_h == m_pCapability->zzhdr_sizes_tbl[i].height) {
+                CDBG("%s: Found match for %d x %d", __func__, req_w, req_h);
+                return true;
+            }
+        }
+        CDBG_HIGH("%s: %d x %d is not supported for zzhdr mode", __func__, req_w, req_h);
+        return false;
+    }
+
+    return true;
+}
+
 /*===========================================================================
  * FUNCTION   : setSceneMode
  *
@@ -8530,59 +8399,53 @@ int32_t QCameraParameters::setAEBracket(const char *aecBracketStr)
  * DESCRIPTION: enable/disable 3A lock.
  *
  * PARAMETERS :
- *   @lockStr : lock value string.
+ *   @lock3A  : lock or unlock
  *
  * RETURN     : int32_t type of status
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraParameters::set3ALock(const char *lockStr)
+int32_t QCameraParameters::set3ALock(bool lock3A)
 {
     int32_t rc = NO_ERROR;
-    if (lockStr != NULL) {
-        int value = lookupAttr(TRUE_FALSE_MODES_MAP, PARAM_MAP_SIZE(TRUE_FALSE_MODES_MAP),
-                lockStr);
-        if (value != NAME_NOT_FOUND) {
-            CDBG_HIGH("%s: Setting Lock lockStr =%s", __func__, lockStr);
-            if(initBatchUpdate(m_pParamBuf) < 0 ) {
-                ALOGE("%s:Failed to initialize group update table", __func__);
-                return BAD_TYPE;
-            }
-            uint32_t focus_mode = CAM_FOCUS_MODE_AUTO;
-            if (value == 1) {
-                if (isUbiFocusEnabled() || isUbiRefocus()) {
-                    //For Ubi focus move focus to infinity.
-                    focus_mode = CAM_FOCUS_MODE_INFINITY;
-                } else if (isOptiZoomEnabled() || isStillMoreEnabled()) {
-                    //For optizoom and stillmore, set focus as fixed.
-                    focus_mode = CAM_FOCUS_MODE_FIXED;
-                }
-            } else {
-                // retrieve previous focus value.
-                const char *focus = get(KEY_FOCUS_MODE);
-                int val = lookupAttr(FOCUS_MODES_MAP, PARAM_MAP_SIZE(FOCUS_MODES_MAP), focus);
-                if (val != NAME_NOT_FOUND) {
-                    focus_mode = (uint32_t) val;
-                    CDBG("%s: focus mode %s", __func__, focus);
-                }
-            }
-            //Lock AWB
-            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_AWB_LOCK, (uint32_t)value)) {
-                return BAD_VALUE;
-            }
-            //Lock AEC
-            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_AEC_LOCK, (uint32_t)value)) {
-                return BAD_VALUE;
-            }
-            if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_FOCUS_MODE, focus_mode)) {
-                return BAD_VALUE;
-            }
-
-            rc = commitSetBatch();
-            if (rc != NO_ERROR) {
-                ALOGE("%s:Failed to commit batch", __func__);
-            }
+    CDBG_HIGH("%s: Setting Lock %d", __func__, lock3A);
+    if(initBatchUpdate(m_pParamBuf) < 0 ) {
+        ALOGE("%s:Failed to initialize group update table", __func__);
+        return BAD_TYPE;
+    }
+    uint32_t focus_mode = CAM_FOCUS_MODE_AUTO;
+    if (lock3A) {
+        if (isUbiFocusEnabled() || isUbiRefocus()) {
+            //For Ubi focus move focus to infinity.
+            focus_mode = CAM_FOCUS_MODE_INFINITY;
+        } else if (isOptiZoomEnabled() || isStillMoreEnabled()) {
+            //For optizoom and stillmore, set focus as fixed.
+            focus_mode = CAM_FOCUS_MODE_FIXED;
         }
+    } else {
+        // retrieve previous focus value.
+        const char *focus = get(KEY_FOCUS_MODE);
+        int val = lookupAttr(FOCUS_MODES_MAP, PARAM_MAP_SIZE(FOCUS_MODES_MAP), focus);
+        if (val != NAME_NOT_FOUND) {
+            focus_mode = (uint32_t) val;
+            CDBG("%s: focus mode %s", __func__, focus);
+        }
+    }
+    //Lock AWB
+    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_AWB_LOCK, (uint32_t)lock3A)) {
+        return BAD_VALUE;
+    }
+    //Lock AEC
+    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_AEC_LOCK, (uint32_t)lock3A)) {
+        return BAD_VALUE;
+    }
+    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf, CAM_INTF_PARM_FOCUS_MODE, focus_mode)) {
+        return BAD_VALUE;
+    }
+
+    rc = commitSetBatch();
+    if (rc != NO_ERROR) {
+        ALOGE("%s:Failed to commit batch", __func__);
     }
     return rc;
 }
@@ -8653,36 +8516,6 @@ bool QCameraParameters::isOptiZoomEnabled()
 }
 
 /*===========================================================================
- * FUNCTION   : setNoiseReductionMode
- *
- * DESCRIPTION: set noise reduction mode
- *
- * PARAMETERS :
- *   @noiseReductionModeStr : noise reduction mode
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::setNoiseReductionMode(const char *noiseReductionModeStr)
-{
-    CDBG_HIGH("%s: noiseReductionModeStr = %s", __func__, noiseReductionModeStr);
-    if (noiseReductionModeStr != NULL) {
-        int value = lookupAttr(NOISE_REDUCTION_MODES_MAP, PARAM_MAP_SIZE(NOISE_REDUCTION_MODES_MAP),
-                noiseReductionModeStr);
-        if (value != NAME_NOT_FOUND) {
-            m_bHighQualityNoiseReductionMode =
-                    !strncmp(VALUE_HIGH_QUALITY, noiseReductionModeStr, strlen(VALUE_HIGH_QUALITY));
-            updateParamEntry(KEY_QC_NOISE_REDUCTION_MODE, noiseReductionModeStr);
-            return NO_ERROR;
-        }
-    }
-    ALOGE("Invalid noise reduction mode value: %s",
-            (noiseReductionModeStr == NULL) ? "NULL" : noiseReductionModeStr);
-    return BAD_VALUE;
-}
-
-/*===========================================================================
  * FUNCTION   : commitAFBracket
  *
  * DESCRIPTION: commit AF Bracket.
@@ -8714,42 +8547,6 @@ int32_t QCameraParameters::commitAFBracket(cam_af_bracketing_t afBracket)
         return rc;
     }
 
-    return rc;
-}
-
-/*===========================================================================
- * FUNCTION   : commitFlashBracket
- *
- * DESCRIPTION: commit Flash Bracket.
- *
- * PARAMETERS :
- *   @AFBracket : Flash bracketing configuration
- *
- * RETURN     : int32_t type of status
- *              NO_ERROR  -- success
- *              none-zero failure code
- *==========================================================================*/
-int32_t QCameraParameters::commitFlashBracket(cam_flash_bracketing_t flashBracket)
-{
-    CDBG_HIGH("%s: E",__func__);
-    int32_t rc = NO_ERROR;
-    if(initBatchUpdate(m_pParamBuf) < 0 ) {
-        ALOGE("%s:Failed to initialize group update table", __func__);
-        return BAD_TYPE;
-    }
-
-    if (ADD_SET_PARAM_ENTRY_TO_BATCH(m_pParamBuf,
-            CAM_INTF_PARM_FLASH_BRACKETING, flashBracket)) {
-        ALOGE("%s:Failed to update table", __func__);
-        return BAD_VALUE;
-    }
-
-    rc = commitSetBatch();
-    if (rc != NO_ERROR) {
-        ALOGE("%s:Failed to commit batch", __func__);
-    }
-
-    CDBG_HIGH("%s: X",__func__);
     return rc;
 }
 
@@ -9450,123 +9247,6 @@ int32_t QCameraParameters::setSecureMode(const char *str)
 }
 
 /*===========================================================================
- * FUNCTION   : setPreviewFrameRateMode
- *
- * DESCRIPTION: set preview frame rate mode
- *
- * PARAMETERS :
- *   @mode    : preview frame rate mode
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::setPreviewFrameRateMode(const char *mode)
-{
-    set(KEY_QC_PREVIEW_FRAME_RATE_MODE, mode);
-}
-
-/*===========================================================================
- * FUNCTION   : getPreviewFrameRateMode
- *
- * DESCRIPTION: get preview frame rate mode
- *
- * PARAMETERS : none
- *
- * RETURN     : preview frame rate mode string
- *==========================================================================*/
-const char *QCameraParameters::getPreviewFrameRateMode() const
-{
-    return get(KEY_QC_PREVIEW_FRAME_RATE_MODE);
-}
-
-/*===========================================================================
- * FUNCTION   : setTouchIndexAec
- *
- * DESCRIPTION: set touch index AEC
- *
- * PARAMETERS :
- *   @x,y     :
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::setTouchIndexAec(int x, int y)
-{
-    char str[32];
-    snprintf(str, sizeof(str), "%dx%d", x, y);
-    set(KEY_QC_TOUCH_INDEX_AEC, str);
-}
-
-/*===========================================================================
- * FUNCTION   : getTouchIndexAec
- *
- * DESCRIPTION: get touch index AEC
- *
- * PARAMETERS :
- *   @x,y     :
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::getTouchIndexAec(int *x, int *y)
-{
-    *x = -1;
-    *y = -1;
-
-    // Get the current string, if it doesn't exist, leave the -1x-1
-    const char *p = get(KEY_QC_TOUCH_INDEX_AEC);
-    if (p == 0)
-        return;
-
-    int tempX, tempY;
-    if (parse_pair(p, &tempX, &tempY, 'x') == 0) {
-        *x = tempX;
-        *y = tempY;
-    }
-}
-
-/*===========================================================================
- * FUNCTION   : setTouchIndexAf
- *
- * DESCRIPTION: set touch index AF
- *
- * PARAMETERS :
- *   @x,y     :
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::setTouchIndexAf(int x, int y)
-{
-    char str[32];
-    snprintf(str, sizeof(str), "%dx%d", x, y);
-    set(KEY_QC_TOUCH_INDEX_AF, str);
-}
-
-/*===========================================================================
- * FUNCTION   : getTouchIndexAf
- *
- * DESCRIPTION: get touch index AF
- *
- * PARAMETERS :
- *   @x,y     :
- *
- * RETURN     : none
- *==========================================================================*/
-void QCameraParameters::getTouchIndexAf(int *x, int *y)
-{
-    *x = -1;
-    *y = -1;
-
-    // Get the current string, if it doesn't exist, leave the -1x-1
-    const char *p = get(KEY_QC_TOUCH_INDEX_AF);
-    if (p == 0)
-        return;
-
-    int tempX, tempY;
-    if (parse_pair(p, &tempX, &tempY, 'x') == 0) {
-        *x = tempX;
-        *y = tempY;
-    }
-}
-
-/*===========================================================================
  * FUNCTION   : getStreamRotation
  *
  * DESCRIPTION: get stream rotation by its type
@@ -9912,6 +9592,85 @@ int32_t QCameraParameters::getStreamDimension(cam_stream_type_t streamType,
 }
 
 /*===========================================================================
+ * FUNCTION   : getParameters
+ *
+ * DESCRIPTION: Return a C string containing the parameters
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : a string containing parameter pairs
+ *==========================================================================*/
+char* QCameraParameters::getParameters()
+{
+    char* strParams = NULL;
+    String8 str;
+
+    int cur_width, cur_height;
+    //Need take care Scale picture size
+    if(m_reprocScaleParam.isScaleEnabled() &&
+        m_reprocScaleParam.isUnderScaling()){
+        int scale_width, scale_height;
+
+        m_reprocScaleParam.getPicSizeFromAPK(scale_width,scale_height);
+        getPictureSize(&cur_width, &cur_height);
+
+        String8 pic_size;
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%dx%d", scale_width, scale_height);
+        pic_size.append(buffer);
+        set(CameraParameters::KEY_PICTURE_SIZE, pic_size);
+    }
+
+    str = flatten();
+    strParams = (char *)malloc(sizeof(char)*(str.length()+1));
+    if(strParams != NULL){
+        memset(strParams, 0, sizeof(char)*(str.length()+1));
+        strlcpy(strParams, str.string(), str.length()+1);
+        strParams[str.length()] = 0;
+    }
+
+    if(m_reprocScaleParam.isScaleEnabled() &&
+        m_reprocScaleParam.isUnderScaling()){
+        //need set back picture size
+        String8 pic_size;
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%dx%d", cur_width, cur_height);
+        pic_size.append(buffer);
+        set(CameraParameters::KEY_PICTURE_SIZE, pic_size);
+    }
+    return strParams;
+}
+
+#ifdef TARGET_TS_MAKEUP
+/*===========================================================================
+ * FUNCTION   : getTsMakeupInfo
+ *
+ * DESCRIPTION: get TsMakeup info
+ *
+ * PARAMETERS :
+ *   @whiteLevel : [output] white level
+ *   @cleanLevel : [output] clean level
+
+ * RETURN     : Whether makeup is enabled or not
+ *==========================================================================*/
+bool QCameraParameters::getTsMakeupInfo(int &whiteLevel, int &cleanLevel) const
+{
+    const char* pch_makeup_enable = get(QCameraParameters::KEY_TS_MAKEUP);
+    if (pch_makeup_enable == NULL) {
+        CDBG_HIGH("%s pch_makeup_enable = null",__func__);
+        return false;
+    }
+    bool enableMakeup =
+            (strcmp(pch_makeup_enable,"On") == 0);
+    if (enableMakeup) {
+        whiteLevel = getInt(QCameraParameters::KEY_TS_MAKEUP_WHITEN);
+        cleanLevel = getInt(QCameraParameters::KEY_TS_MAKEUP_CLEAN);
+    }
+    return enableMakeup;
+}
+#endif
+
+/*===========================================================================
  * FUNCTION   : getPreviewHalPixelFormat
  *
  * DESCRIPTION: get preview HAL pixel format
@@ -10196,21 +9955,6 @@ uint8_t QCameraParameters::getNumOfRetroSnapshots()
     }
     CDBG_HIGH("%s: [ZSL Retro] : numOfRetroSnaps - %d", __func__, numOfRetroSnapshots);
     return (uint8_t)numOfRetroSnapshots;
-}
-
-/*===========================================================================
- * FUNCTION   : getBurstLEDOnPeriod
- *
- * DESCRIPTION: get burst LED on period
- *
- * PARAMETERS : none
- *
- * RETURN     : burst LED on period
- *==========================================================================*/
-int QCameraParameters::getBurstLEDOnPeriod()
-{
-  CDBG_HIGH("%s: [ZSL Retro] burst LED ON period: %d", __func__, m_nBurstLEDOnPeriod);
-  return m_nBurstLEDOnPeriod;
 }
 
 /*===========================================================================
@@ -11055,6 +10799,18 @@ int32_t QCameraParameters::setFrameSkip(enum msm_vfe_frame_skip_pattern pattern)
     return rc;
 }
 
+/*===========================================================================
+ * FUNCTION   : updateRAW
+ *
+ * DESCRIPTION: Query sensor output size based on maximum stream dimension
+ *
+ * PARAMETERS :
+ *   @max_dim : maximum stream dimension
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
 int32_t QCameraParameters::updateRAW(cam_dimension_t max_dim)
 {
     int32_t rc = NO_ERROR;
@@ -11683,11 +11439,6 @@ int32_t QCameraParameters::commitParamChanges()
         m_bSceneTransitionAuto = false;
     }
 
-    if ( m_bReleaseTorchCamera && ( NULL != m_pTorch) ) {
-        m_pTorch->releaseTorchCamera();
-        m_bReleaseTorchCamera = false;
-    }
-
 
     return NO_ERROR;
 }
@@ -11701,9 +11452,8 @@ int32_t QCameraParameters::commitParamChanges()
  *
  * RETURN     : none
  *==========================================================================*/
-QCameraReprocScaleParam::QCameraReprocScaleParam(QCameraParameters *parent)
-  : mParent(parent),
-    mScaleEnabled(false),
+QCameraParameters::QCameraReprocScaleParam::QCameraReprocScaleParam()
+  : mScaleEnabled(false),
     mIsUnderScaling(false),
     mScaleDirection(0),
     mNeedScaleCnt(0),
@@ -11728,7 +11478,7 @@ QCameraReprocScaleParam::QCameraReprocScaleParam(QCameraParameters *parent)
  *
  * RETURN     : none
  *==========================================================================*/
-QCameraReprocScaleParam::~QCameraReprocScaleParam()
+QCameraParameters::QCameraReprocScaleParam::~QCameraReprocScaleParam()
 {
     //do nothing now.
 }
@@ -11748,7 +11498,7 @@ QCameraReprocScaleParam::~QCameraReprocScaleParam()
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraReprocScaleParam::setScaleSizeTbl(size_t scale_cnt,
+int32_t QCameraParameters::QCameraReprocScaleParam::setScaleSizeTbl(size_t scale_cnt,
         cam_dimension_t *scale_tbl, size_t org_cnt, cam_dimension_t *org_tbl)
 {
     int32_t rc = NO_ERROR;
@@ -11805,7 +11555,7 @@ int32_t QCameraReprocScaleParam::setScaleSizeTbl(size_t scale_cnt,
  *
  * RETURN     : uint8_t type of picture size count
  *==========================================================================*/
-size_t QCameraReprocScaleParam::getScaleSizeTblCnt()
+size_t QCameraParameters::QCameraReprocScaleParam::getScaleSizeTblCnt()
 {
     return mNeedScaleCnt;
 }
@@ -11819,7 +11569,7 @@ size_t QCameraReprocScaleParam::getScaleSizeTblCnt()
  *
  * RETURN     : cam_dimension_t list of picture size table
  *==========================================================================*/
-cam_dimension_t *QCameraReprocScaleParam::getScaledSizeTbl()
+cam_dimension_t *QCameraParameters::QCameraReprocScaleParam::getScaledSizeTbl()
 {
     if(!mScaleEnabled)
         return NULL;
@@ -11837,7 +11587,7 @@ cam_dimension_t *QCameraReprocScaleParam::getScaledSizeTbl()
  *
  * RETURN     : none
  *==========================================================================*/
-void QCameraReprocScaleParam::setScaleEnable(bool enabled)
+void QCameraParameters::QCameraReprocScaleParam::setScaleEnable(bool enabled)
 {
     mScaleEnabled = enabled;
 }
@@ -11851,7 +11601,7 @@ void QCameraReprocScaleParam::setScaleEnable(bool enabled)
  *
  * RETURN     : bool type of status
  *==========================================================================*/
-bool QCameraReprocScaleParam::isScaleEnabled()
+bool QCameraParameters::QCameraReprocScaleParam::isScaleEnabled()
 {
     return mScaleEnabled;
 }
@@ -11867,7 +11617,7 @@ bool QCameraReprocScaleParam::isScaleEnabled()
  *
  * RETURN     : bool type of status
  *==========================================================================*/
-bool QCameraReprocScaleParam::isScalePicSize(int width, int height)
+bool QCameraParameters::QCameraReprocScaleParam::isScalePicSize(int width, int height)
 {
     //Check if the picture size is in scale table
     if(mNeedScaleCnt <= 0)
@@ -11895,7 +11645,7 @@ bool QCameraReprocScaleParam::isScalePicSize(int width, int height)
  *
  * RETURN     : bool type of status
  *==========================================================================*/
-bool QCameraReprocScaleParam::isValidatePicSize(int width, int height)
+bool QCameraParameters::QCameraReprocScaleParam::isValidatePicSize(int width, int height)
 {
     size_t i = 0;
 
@@ -11930,7 +11680,7 @@ bool QCameraReprocScaleParam::isValidatePicSize(int width, int height)
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraReprocScaleParam::setSensorSupportedPicSize()
+int32_t QCameraParameters::QCameraReprocScaleParam::setSensorSupportedPicSize()
 {
     //will find a suitable picture size (here we leave a prossibility to add other scale requirement)
     //Currently we only focus on upscaling, and checkScaleSizeTable() has guaranteed the dimension ratio.
@@ -11959,7 +11709,7 @@ int32_t QCameraReprocScaleParam::setSensorSupportedPicSize()
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraReprocScaleParam::setValidatePicSize(int &width,int &height)
+int32_t QCameraParameters::QCameraReprocScaleParam::setValidatePicSize(int &width,int &height)
 {
     if(!mScaleEnabled)
         return BAD_VALUE;
@@ -12008,7 +11758,7 @@ int32_t QCameraReprocScaleParam::setValidatePicSize(int &width,int &height)
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraReprocScaleParam::getPicSizeFromAPK(int &width, int &height)
+int32_t QCameraParameters::QCameraReprocScaleParam::getPicSizeFromAPK(int &width, int &height)
 {
     if(!mIsUnderScaling)
         return BAD_VALUE;
@@ -12031,7 +11781,7 @@ int32_t QCameraReprocScaleParam::getPicSizeFromAPK(int &width, int &height)
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraReprocScaleParam::getPicSizeSetted(int &width, int &height)
+int32_t QCameraParameters::QCameraReprocScaleParam::getPicSizeSetted(int &width, int &height)
 {
     width = mPicSizeSetted.width;
     height = mPicSizeSetted.height;
@@ -12047,7 +11797,7 @@ int32_t QCameraReprocScaleParam::getPicSizeSetted(int &width, int &height)
  *
  * RETURN     : bool type of status
  *==========================================================================*/
-bool QCameraReprocScaleParam::isUnderScaling()
+bool QCameraParameters::QCameraReprocScaleParam::isUnderScaling()
 {
     return mIsUnderScaling;
 }
@@ -12065,7 +11815,7 @@ bool QCameraReprocScaleParam::isUnderScaling()
  *
  * RETURN     : bool type of status
  *==========================================================================*/
-size_t QCameraReprocScaleParam::checkScaleSizeTable(size_t scale_cnt,
+size_t QCameraParameters::QCameraReprocScaleParam::checkScaleSizeTable(size_t scale_cnt,
         cam_dimension_t *scale_tbl, size_t org_cnt, cam_dimension_t *org_tbl)
 {
     size_t stbl_cnt = 0;
@@ -12112,7 +11862,7 @@ size_t QCameraReprocScaleParam::checkScaleSizeTable(size_t scale_cnt,
  *
  * RETURN     : uint8_t type of picture size count
  *==========================================================================*/
-size_t QCameraReprocScaleParam::getTotalSizeTblCnt()
+size_t QCameraParameters::QCameraReprocScaleParam::getTotalSizeTblCnt()
 {
     return mTotalSizeTblCnt;
 }
@@ -12126,7 +11876,7 @@ size_t QCameraReprocScaleParam::getTotalSizeTblCnt()
  *
  * RETURN     : cam_dimension_t list of picture size table
  *==========================================================================*/
-cam_dimension_t *QCameraReprocScaleParam::getTotalSizeTbl()
+cam_dimension_t *QCameraParameters::QCameraReprocScaleParam::getTotalSizeTbl()
 {
     if(!mScaleEnabled)
         return NULL;
@@ -12493,9 +12243,8 @@ bool QCameraParameters::setStreamConfigure(bool isCapture,
             stream_config_info.num_streams++;
         }
     }
-
-    if ((!raw_capture) && ((getofflineRAW() && !getRecordingHintValue())
-            || (raw_yuv))) {
+    if (raw_yuv && !raw_capture && (isZSLMode() ||
+            (getofflineRAW() && isCapture && !getRecordingHintValue()))) {
         cam_dimension_t max_dim = {0,0};
         updateRAW(max_dim);
         stream_config_info.type[stream_config_info.num_streams] =
@@ -12866,33 +12615,26 @@ int32_t QCameraParameters::updateDebugLevel()
  *
  * DESCRIPTION: Function to decide Offline RAW feature.
  *
- * PARAMETERS :
- *  @raw_value: offline raw value to set.
+ * PARAMETERS : none
  *
  * RETURN     : none
  *==========================================================================*/
-void QCameraParameters::setOfflineRAW(bool raw_value)
+void QCameraParameters::setOfflineRAW()
 {
-    char value[PROPERTY_VALUE_MAX];
-    bool raw_yuv = false;
-    bool offlineRaw = false;
+   char value[PROPERTY_VALUE_MAX];
+   bool raw_yuv = false;
+   bool offlineRaw = false;
 
-    if (raw_value) {
-        mOfflineRAW = true;
-        CDBG_HIGH("%s: Offline Raw  %d",__func__, mOfflineRAW);
-        return;
-    }
-
-    property_get("persist.camera.raw_yuv", value, "0");
-    raw_yuv = atoi(value) > 0 ? true : false;
-    property_get("persist.camera.offlineraw", value, "0");
-    offlineRaw = atoi(value) > 0 ? true : false;
-    if ((raw_yuv || isRdiMode()) && offlineRaw) {
-        mOfflineRAW = true;
-    } else {
-        mOfflineRAW = false;
-    }
-    CDBG_HIGH("%s: Offline Raw  %d",__func__, mOfflineRAW);
+   property_get("persist.camera.raw_yuv", value, "0");
+   raw_yuv = atoi(value) > 0 ? true : false;
+   property_get("persist.camera.offlineraw", value, "0");
+   offlineRaw = atoi(value) > 0 ? true : false;
+   if((raw_yuv || isRdiMode()) && offlineRaw){
+       mOfflineRAW = true;
+   }else{
+       mOfflineRAW = false;
+   }
+   CDBG_HIGH("%s: Offline Raw  %d",__func__, mOfflineRAW);
 }
 
 /*===========================================================================
@@ -12921,12 +12663,6 @@ int32_t QCameraParameters::updatePpFeatureMask(cam_stream_type_t stream_type) {
             (stream_type == CAM_STREAM_TYPE_PREVIEW && getRecordingHintValue() &&
             isPreviewSeeMoreRequired()))) {
        feature_mask |= CAM_QCOM_FEATURE_LLVD;
-    }
-
-    if (isHighQualityNoiseReductionMode() &&
-            ((stream_type == CAM_STREAM_TYPE_VIDEO) ||
-            (stream_type == CAM_STREAM_TYPE_PREVIEW && getRecordingHintValue()))) {
-        feature_mask |= CAM_QTI_FEATURE_SW_TNR;
     }
 
     // Do not enable feature mask for ZSL/non-ZSL/liveshot snapshot except for 4K2k case
@@ -12988,17 +12724,14 @@ int32_t QCameraParameters::updatePpFeatureMask(cam_stream_type_t stream_type) {
     feature_mask |= config.feature_mask;
 
     // Dual Camera scenarios
-    // all feature masks are disabled for preview and analysis streams for aux session
+    // all feature masks are disabled for preview and analysis streams
+    // for aux session
     // all required feature masks for aux session preview and analysis streams need
     // to be enabled explicitly here
-    ///@note When aux camera is of bayer type, keep pp mask as is or we'd run
-    ///      into stream mapping problems. YUV sensor is marked as interleaved and has
-    ///      preferred mapping setup so we don't see any mapping issues.
     if (m_relCamSyncInfo.sync_control == CAM_SYNC_RELATED_SENSORS_ON) {
         if (((CAM_STREAM_TYPE_ANALYSIS == stream_type) ||
                 (CAM_STREAM_TYPE_PREVIEW == stream_type)) &&
-                (m_relCamSyncInfo.mode == CAM_MODE_SECONDARY) &&
-                (m_pCapability->sensor_type.sens_type == CAM_SENSOR_YUV)) {
+                (m_relCamSyncInfo.mode == CAM_MODE_SECONDARY)) {
             CDBG_HIGH("%s: Disabling all pp feature masks for aux preview and "
                     "analysis streams", __func__);
             feature_mask = 0;
@@ -13067,27 +12800,6 @@ int32_t QCameraParameters::getStreamPpMask(cam_stream_type_t stream_type,
 }
 
 /*===========================================================================
- * FUNCTION   : isMultiPassReprocessing
- *
- * DESCRIPTION: Read setprop to enable/disable multipass
- *
- * PARAMETERS : none
- *
- * RETURN     : TRUE  -- If enabled
- *              FALSE  -- disabled
- *==========================================================================*/
-bool QCameraParameters::isMultiPassReprocessing()
-{
-    char value[PROPERTY_VALUE_MAX];
-    int multpass = 0;
-
-    property_get("persist.camera.multi_pass", value, "0");
-    multpass = atoi(value);
-
-    return (multpass == 0)? FALSE : TRUE;
-}
-
-/*===========================================================================
  * FUNCTION   : setReprocCount
  *
  * DESCRIPTION: Set total reprocessing pass count
@@ -13099,22 +12811,20 @@ bool QCameraParameters::isMultiPassReprocessing()
 void QCameraParameters::setReprocCount()
 {
     mTotalPPCount = 1; //Default reprocessing Pass count
+    char value[PROPERTY_VALUE_MAX];
+    int multpass = 0;
 
-    if (getManualCaptureMode() >=
-            CAM_MANUAL_CAPTURE_TYPE_3) {
-        CDBG ("2 Pass postprocessing enabled for MANUAL Capture mode");
-        mTotalPPCount++;
-        return;
-    }
+    property_get("persist.camera.multi_pass", value, "0");
+    multpass = atoi(value);
 
-    if (!isMultiPassReprocessing()) {
+    if ( multpass == 0 ) {
         return;
     }
 
     if ((getZoomLevel() != 0)
             && (getBurstCountForAdvancedCapture()
             == getNumOfSnapshots())) {
-        CDBG("2 Pass postprocessing enabled");
+        ALOGW("Zoom Present. Need 2nd pass for post processing");
         mTotalPPCount++;
     }
 }
@@ -13496,7 +13206,7 @@ uint8_t QCameraParameters::getNumOfExtraBuffersForVideo()
 {
     uint8_t numOfBufs = 0;
 
-    if (isSeeMoreEnabled() || isHighQualityNoiseReductionMode()) {
+    if (isSeeMoreEnabled()) {
         numOfBufs = 1;
     }
 
@@ -13517,8 +13227,7 @@ uint8_t QCameraParameters::getNumOfExtraBuffersForPreview()
 {
     uint8_t numOfBufs = 0;
 
-    if ((isSeeMoreEnabled() || isHighQualityNoiseReductionMode())
-            && !isZSLMode() && getRecordingHintValue()) {
+    if (isSeeMoreEnabled() && !isZSLMode() && getRecordingHintValue()) {
         numOfBufs = 1;
     }
 
@@ -13675,46 +13384,51 @@ bool QCameraParameters::isFDInVideoEnabled()
 }
 
 /*===========================================================================
- * FUNCTION   : setManualCaptureMode
+ * FUNCTION   : isReprocScaleEnabled
  *
- * DESCRIPTION: Function to set Manual capture modes
+ * DESCRIPTION: Whether reprocess scale is enabled or not
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : TRUE  : Reprocess scale is enabled
+ *              FALSE : Reprocess scale is not enabled
+ *==========================================================================*/
+bool QCameraParameters::isReprocScaleEnabled()
+{
+    return m_reprocScaleParam.isScaleEnabled();
+}
+
+/*===========================================================================
+ * FUNCTION   : isUnderReprocScaling
+ *
+ * DESCRIPTION: Whether image is under reprocess scaling
+ *
+ * PARAMETERS : none
+ *
+ * RETURN     : TRUE  : Image is under reprocess scaling
+ *              FALSE : Image is not under reprocess scaling
+ *==========================================================================*/
+bool QCameraParameters::isUnderReprocScaling()
+{
+    return m_reprocScaleParam.isUnderScaling();
+}
+
+/*===========================================================================
+ * FUNCTION   : getPicSizeFromAPK
+ *
+ * DESCRIPTION: Get picture size set from application.
  *
  * PARAMETERS :
- *   @mode : Capture mode configured
+ *   @width   : with set by application
+ *   @height  : height set by application
  *
  * RETURN     : int32_t type of status
  *              NO_ERROR  -- success
  *              none-zero failure code
  *==========================================================================*/
-int32_t QCameraParameters::setManualCaptureMode(QCameraManualCaptureModes mode)
+int32_t QCameraParameters::getPicSizeFromAPK(int &width, int &height)
 {
-    int32_t rc = NO_ERROR;
-    char value[PROPERTY_VALUE_MAX];
-    int8_t count = 0;
-
-    property_get("persist.camera.manual.capture", value, "0");
-    count = atoi(value);
-
-    if (count) {
-        if (mode == CAM_MANUAL_CAPTURE_TYPE_OFF) {
-            m_ManualCaptureMode = CAM_MANUAL_CAPTURE_TYPE_1;
-        } else {
-            m_ManualCaptureMode = mode;
-        }
-    } else {
-        m_ManualCaptureMode = CAM_MANUAL_CAPTURE_TYPE_OFF;
-    }
-
-    if (m_ManualCaptureMode == CAM_MANUAL_CAPTURE_TYPE_2) {
-        setOfflineRAW(FALSE);
-    } else if (m_ManualCaptureMode >= CAM_MANUAL_CAPTURE_TYPE_3) {
-        setOfflineRAW(TRUE);
-    } else {
-        setOfflineRAW(FALSE);
-    }
-    setReprocCount();
-    CDBG_HIGH("%s: Manual capture mode - %d", __func__, m_ManualCaptureMode);
-    return rc;
+    return m_reprocScaleParam.getPicSizeFromAPK(width, height);
 }
 
 }; // namespace qcamera

@@ -34,7 +34,7 @@
 #include <utils/Log.h>
 #include <utils/Mutex.h>
 #include <utils/Condition.h>
-#include <QCameraParameters.h>
+#include <QCameraParametersIntf.h>
 
 #include "QCameraTrace.h"
 #include "QCameraQueue.h"
@@ -135,6 +135,8 @@ typedef struct {
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define EXIF_ASCII_PREFIX_SIZE           8   //(sizeof(ExifAsciiPrefix))
+
 extern volatile uint32_t gCamHalLogLevel;
 
 typedef enum {
@@ -213,9 +215,7 @@ private:
     bool             mActive;
 };
 class QCamera2HardwareInterface : public QCameraAllocator,
-                                  public QCameraThermalCallback,
-                                  public QCameraAdjustFPS,
-                                  public QCameraTorchInterface
+        public QCameraThermalCallback, public QCameraAdjustFPS
 {
 public:
     /* static variable and functions accessed by camera service */
@@ -299,11 +299,8 @@ public:
             void *userdata, void *data);
 
     virtual int recalcFPSRange(int &minFPS, int &maxFPS,
+            const float &minVideoFPS, const float &maxVideoFPS,
             cam_fps_range_t &adjustedRange);
-
-    // Implementation of QCameraTorchInterface
-    virtual int prepareTorchCamera();
-    virtual int releaseTorchCamera();
 
     friend class QCameraStateMachine;
     friend class QCameraPostProcessor;
@@ -319,7 +316,6 @@ public:
     int32_t getJpegHandleInfo(mm_jpeg_ops_t *ops,
             mm_jpeg_mpo_ops_t *mpo_ops, uint32_t *pJpegClientHandle);
     uint32_t getCameraId() { return mCameraId; };
-    void getParams(QCameraParameters **pParm) {*pParm = &mParameters;};
 private:
     int setPreviewWindow(struct preview_stream_ops *window);
     int setCallBacks(
@@ -346,7 +342,7 @@ private:
     int takeLiveSnapshot();
     int takePictureInternal();
     int cancelLiveSnapshot();
-    char* getParameters();
+    char* getParameters() {return mParameters.getParameters(); }
     int putParameters(char *);
     int sendCommand(int32_t cmd, int32_t &arg1, int32_t &arg2);
     int release();
@@ -370,7 +366,9 @@ private:
     void signalEvtResult(qcamera_api_result_t *result);
 
     int calcThermalLevel(qcamera_thermal_level_enum_t level,
-            const int minFPSi, const int maxFPSi, cam_fps_range_t &adjustedRange,
+            const int minFPSi, const int maxFPSi,
+            const float &minVideoFPS, const float &maxVideoFPS,
+            cam_fps_range_t &adjustedRange,
             enum msm_vfe_frame_skip_pattern &skipPattern);
     int updateThermalLevel(void *level);
 
@@ -400,7 +398,6 @@ private:
     uint32_t getJpegQuality();
     QCameraExif *getExifData();
     cam_sensor_t getSensorType();
-    bool isLowPowerMode();
 
     int32_t processAutoFocusEvent(cam_auto_focus_data_t &focus_data);
     int32_t processZoomEvent(cam_crop_data_t &crop_info);
@@ -535,8 +532,6 @@ private:
                                         void *userdata);
     static void snapshot_channel_cb_routine(mm_camera_super_buf_t *frame,
            void *userdata);
-    static void raw_channel_cb_routine(mm_camera_super_buf_t *frame,
-            void *userdata);
     static void raw_stream_cb_routine(mm_camera_super_buf_t *frame,
                                       QCameraStream *stream,
                                       void *userdata);
@@ -563,9 +558,6 @@ private:
                                    int32_t cbStatus);
     static void getLogLevel();
 
-    int32_t startRAWChannel(QCameraChannel *pChannel);
-    int32_t stopRAWChannel();
-
 private:
     camera_device_t   mCameraDevice;
     uint32_t          mCameraId;
@@ -576,7 +568,7 @@ private:
     bool m_bRelCamCalibValid;
 
     preview_stream_ops_t *mPreviewWindow;
-    QCameraParameters mParameters;
+    QCameraParametersIntf mParameters;
     int32_t               mMsgEnabled;
     int                   mStoreMetaDataInFrame;
 
@@ -604,7 +596,6 @@ private:
     pthread_cond_t m_evtCond;
     qcamera_api_result_t m_evtResult;
 
-    pthread_mutex_t m_parm_lock;
 
     QCameraChannel *m_channels[QCAMERA_CH_TYPE_MAX]; // array holding channel ptr
 
@@ -728,7 +719,6 @@ private:
     bool checkDeferredWork(uint32_t &job_id);
     int32_t getDefJobStatus(uint32_t &job_id);
 
-    uint32_t mPostviewJob;
     uint32_t mReprocJob;
     uint32_t mJpegJob;
     uint32_t mMetadataAllocJob;

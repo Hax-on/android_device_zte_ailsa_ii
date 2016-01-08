@@ -134,6 +134,9 @@
 
 #define MAX_OPTICAL_BLACK_REGIONS 5
 
+/*reprocess pipeline stages are pproc and jpeg */
+#define MAX_REPROCESS_PIPELINE_STAGES 2
+
 typedef enum {
     CAM_HAL_V1 = 1,
     CAM_HAL_V3 = 3
@@ -391,10 +394,10 @@ typedef enum {
 typedef enum {
     CAM_GLBL_DBG_NONE  = 0,
     CAM_GLBL_DBG_ERR   = 1,
-    CAM_GLBL_DBG_HIGH  = 2,
-    CAM_GLBL_DBG_WARN  = 3,
-    CAM_GLBL_DBG_LOW   = 4,
-    CAM_GLBL_DBG_DEBUG = 5,
+    CAM_GLBL_DBG_WARN  = 2,
+    CAM_GLBL_DBG_HIGH  = 3,
+    CAM_GLBL_DBG_DEBUG = 4,
+    CAM_GLBL_DBG_LOW   = 5,
     CAM_GLBL_DBG_INFO  = 6
 } cam_global_debug_level_t;
 
@@ -820,6 +823,13 @@ typedef enum {
     CAM_CDS_MODE_LOCK,
     CAM_CDS_MODE_MAX
 } cam_cds_mode_type_t;
+
+typedef enum {
+    CAM_SENSOR_HDR_OFF,
+    CAM_SENSOR_HDR_IN_SENSOR = 1,
+    CAM_SENSOR_HDR_ZIGZAG,
+    CAM_SENSOR_HDR_MAX,
+} cam_sensor_hdr_type_t;
 
 typedef struct  {
     int32_t left;
@@ -2184,8 +2194,7 @@ typedef struct {
 #define CAM_QCOM_FEATURE_PP_SUPERSET    (CAM_QCOM_FEATURE_DENOISE2D|CAM_QCOM_FEATURE_CROP|\
                                          CAM_QCOM_FEATURE_ROTATION|CAM_QCOM_FEATURE_SHARPNESS|\
                                          CAM_QCOM_FEATURE_SCALE|CAM_QCOM_FEATURE_CAC|\
-                                         CAM_QCOM_FEATURE_EZTUNE|CAM_QCOM_FEATURE_CPP_TNR|\
-                                         CAM_QCOM_FEATURE_LLVD)
+                                         CAM_QCOM_FEATURE_EZTUNE|CAM_QCOM_FEATURE_CPP_TNR)
 
 #define CAM_QCOM_FEATURE_PP_PASS_1      CAM_QCOM_FEATURE_PP_SUPERSET
 #define CAM_QCOM_FEATURE_PP_PASS_2      CAM_QCOM_FEATURE_SCALE | CAM_QCOM_FEATURE_CROP;

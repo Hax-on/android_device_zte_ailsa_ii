@@ -199,7 +199,7 @@ private:
     QCameraExif *              m_pJpegExifObj;
     uint32_t                   m_bThumbnailNeeded;
 
-    int8_t                     mPPChannelCount;
+    int8_t                     mTotalNumReproc;
     QCameraReprocessChannel    *mPPChannels[CAM_PP_CHANNEL_MAX];
 
     camera_memory_t *          m_DataMem; // save frame mem pointer
