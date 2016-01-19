@@ -93,8 +93,7 @@ WCNSS_FILTER_USES_SIBS := true
 
 # Camera
 PRODUCT_PACKAGES += \
-    camera.msm8994 \
-    libmm-qcamera
+    camera.msm8996
 
 # Display
 PRODUCT_PACKAGES += \
