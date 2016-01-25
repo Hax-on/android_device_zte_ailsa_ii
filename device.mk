@@ -129,6 +129,10 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PACKAGES += \
     keystore.msm8996
 
+# Lights
+PRODUCT_PACKAGES += \
+    lights.msm8996
+
 # Media
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/media_profiles.xml:system/etc/media_profiles.xml \
