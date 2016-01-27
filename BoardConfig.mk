@@ -201,5 +201,25 @@ CONFIG_EAP_PROXY := qmi
 CONFIG_EAP_PROXY_DUAL_SIM := true
 CONFIG_EAP_PROXY_AKA_PRIME := true
 
+############################## exFAT Dirver START ##############################
+#
+# added for paragon exfat driver
+#
+
+define set_c_macro
+$(if $(strip $(1)), \
+$(eval COMMON_GLOBAL_CFLAGS += -D$(1)) \
+$(eval COMMON_GLOBAL_CPPFLAGS += -D$(1)) \
+,$(warning null params for set C macro!!))
+endef
+
+ZTE_EXFAT_USES := PARAGON
+
+ifeq ($(ZTE_EXFAT_USES),PARAGON)
+$(call set_c_macro,ZTE_PARAGON)
+endif
+
+############################## exFAT Dirver END ##############################
+
 # Use the non-open-source parts, if they're present
 -include vendor/zte/chowder/BoardConfigVendor.mk
