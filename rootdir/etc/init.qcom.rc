@@ -703,11 +703,11 @@ service iprenew_p2p /system/bin/dhcpcd -n
 #    disabled
 #    oneshot
 
-service cnss_diag /system/bin/cnss_diag --q -f -d
-    class main
-    user root
-    group root
-    oneshot
+#service cnss_diag /system/bin/cnss_diag --q -f -d
+#    class main
+#    user root
+#    group root
+#    oneshot
 
 service cnss-daemon /system/bin/cnss-daemon -n -l
     class late_start
