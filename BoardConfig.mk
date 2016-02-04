@@ -196,6 +196,9 @@ CONFIG_EAP_PROXY := qmi
 CONFIG_EAP_PROXY_DUAL_SIM := true
 CONFIG_EAP_PROXY_AKA_PRIME := true
 
+# CNE
+BOARD_USES_QCNE := true
+
 ############################## exFAT Dirver START ##############################
 #
 # added for paragon exfat driver
