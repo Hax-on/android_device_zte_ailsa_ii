@@ -63,7 +63,8 @@ PRODUCT_PACKAGES += \
     audio.usb.default \
     libqcompostprocbundle \
     libqcomvisualizer \
-    tinymix
+    tinymix \
+	tinyplay
 
 # Audio configuration
 PRODUCT_COPY_FILES += \
@@ -82,6 +83,27 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/audio/sound_trigger_platform_info.xml:system/etc/sound_trigger_platform_info.xml \
     $(LOCAL_PATH)/audio/audio_platform_info.xml:system/etc/audio_platform_info.xml
 
+############################## 3rd party Audio START ##############################
+# chenjun
+# $(warning chenjun:@ailsa_ii.mk:BOARD = $(BOARD))
+
+PRODUCT_PACKAGES += \
+    libtfa9890 \
+    climax_hostSW
+
+AKM_MODELS_SRC_DIR = device/zte/chowder/akmfw
+AKM_MODELS_DST_DIR = system/etc/firmware
+PRODUCT_COPY_FILES += \
+    $(foreach f,$(wildcard $(AKM_MODELS_SRC_DIR)/* $(AKM_MODELS_SRC_DIR)/*/*),$(f):$(subst $(AKM_MODELS_SRC_DIR),$(AKM_MODELS_DST_DIR),$(f)))
+
+NXP_MODELS_SRC_DIR = device/zte/chowder/nxpfw
+NXP_MODELS_DST_DIR = system/etc/settings
+PRODUCT_COPY_FILES += \
+    $(foreach f,$(wildcard $(NXP_MODELS_SRC_DIR)/* $(NXP_MODELS_SRC_DIR)/*/*),$(f):$(subst $(NXP_MODELS_SRC_DIR),$(NXP_MODELS_DST_DIR),$(f)))
+
+############################## 3rd party Audio END ###############################
+
+	
 # Bluetooth
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(LOCAL_PATH)/bluetooth
 BOARD_HAS_QCA_BT_ROME := true
