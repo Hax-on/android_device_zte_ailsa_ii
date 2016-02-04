@@ -52,11 +52,6 @@ TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
 TARGET_KERNEL_CONFIG := msm_defconfig
 TARGET_KERNEL_SOURCE := kernel/zte/msm8996
 
-# Enable DIAG on debug builds
-ifneq ($(TARGET_BUILD_VARIANT),user)
-TARGET_KERNEL_ADDITIONAL_CONFIG ?= cyanogenmod_debug_config
-endif
-
 # Audio
 AUDIO_USE_LL_AS_PRIMARY_OUTPUT := true
 BOARD_USES_ALSA_AUDIO := true
