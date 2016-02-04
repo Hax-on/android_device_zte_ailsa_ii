@@ -1541,7 +1541,7 @@ void get_sensor_info()
             if(entity.type == MEDIA_ENT_T_V4L2_SUBDEV &&
                 entity.group_id == MSM_CAMERA_SUBDEV_SENSOR) {
                 temp = entity.flags >> 8;
-                mount_angle = (temp & 0x03) * 90;
+                mount_angle = (temp & 0xFF) * 90;
                 facing = (temp & 0xFF00) >> 8;
                 type = ((entity.flags & CAM_SENSOR_TYPE_MASK) ?
                         CAM_TYPE_AUX:CAM_TYPE_MAIN);
