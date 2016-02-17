@@ -117,6 +117,10 @@ WCNSS_FILTER_USES_SIBS := true
 PRODUCT_PACKAGES += \
     camera.msm8996
 
+# Charger
+PRODUCT_PACKAGES += \
+    charger_res_images
+
 # Display
 PRODUCT_PACKAGES += \
     copybit.msm8996 \
