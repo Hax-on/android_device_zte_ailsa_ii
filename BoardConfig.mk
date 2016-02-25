@@ -99,6 +99,11 @@ BOARD_QTI_CAMERA_V2 := true
 TARGET_USE_VENDOR_CAMERA_EXT := true
 USE_DEVICE_SPECIFIC_CAMERA := true
 
+# CM Hardware
+BOARD_USES_CYANOGEN_HARDWARE := true
+BOARD_HARDWARE_CLASS += \
+    hardware/cyanogen/cmhw
+
 # Crypto
 TARGET_HW_DISK_ENCRYPTION := true
 
