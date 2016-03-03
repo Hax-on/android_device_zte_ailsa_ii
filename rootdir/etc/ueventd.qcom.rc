@@ -237,3 +237,6 @@
 #ImproveTouch device
 /dev/hbtp_input           0660   system     system
 /dev/hbtp_vm              0660   system     system
+
+# Factory reset protection
+/dev/block/platform/soc/624000.ufshc/by-name/frp 0600 system system

@@ -110,4 +110,4 @@ ro.vendor.extension_library=libqti-perfd-client.so
 persist.sys.isUsbOtgEnabled=1
 
 # Factory reset protection
-ro.frp.pst=/dev/block/bootdevice/by-name/config
+ro.frp.pst=/dev/block/platform/soc/624000.ufshc/by-name/frp
