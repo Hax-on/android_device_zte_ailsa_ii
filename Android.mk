@@ -117,4 +117,9 @@ $(shell mkdir -p $(TARGET_OUT)/etc/firmware/wlan/qca_cld; \
     ln -sf /persist/wlan_mac.bin \
 	    $(TARGET_OUT_ETC)/firmware/wlan/qca_cld/wlan_mac.bin)
 
+# For creating rfs symbolic link in system partition
+ifeq ($(QCPATH),)
+include device/zte/chowder/tftp.mk
+endif
+
 endif
