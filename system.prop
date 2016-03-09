@@ -55,7 +55,6 @@ ro.sys.fw.dex2oat_thread_count=4
 
 # Display
 debug.composition.type=c2d
-debug.sf.gpu_comp_tiling=1
 debug.mdpcomp.idletime=600
 persist.hwc.mdpcomp.enable=true
 persist.hwc.mdpcomp.maxpermixer=5
@@ -105,9 +104,6 @@ persist.timed.enable=true
 ro.min_freq_0=384000
 ro.min_freq_4=384000
 ro.vendor.extension_library=libqti-perfd-client.so
-
-# USB OTG
-persist.sys.isUsbOtgEnabled=1
 
 # Factory reset protection
 ro.frp.pst=/dev/block/platform/soc/624000.ufshc/by-name/frp
